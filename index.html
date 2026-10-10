@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#18232b" />
+    <meta name="description" content="Shill TakeOver — survive the floaters, collect feet, and outrun Bibi." />
+    <title>SHILL TAKEOVER</title>
+  </head>
+  <body>
+    <main class="game-shell" id="game-shell">
+      <header class="topbar">
+        <a class="wordmark" href="#game" aria-label="Shill TakeOver home">SHILL <span>TAKEOVER</span></a>
+        <div class="hud" aria-live="polite" aria-label="Run statistics">
+          <div class="hud-stat"><span>TIME</span><strong id="time-value">0.0s</strong></div>
+          <div class="hud-stat"><span>BEST</span><strong id="best-value">0.0s</strong></div>
+          <div class="hud-stat feet-stat"><span>FEET</span><strong id="feet-value">0</strong></div>
+        </div>
+        <button class="icon-button" id="mute-button" type="button" aria-label="Mute sound" title="Mute sound">♪</button>
+      </header>
+
+      <section class="play-area" id="game" aria-label="Game area">
+        <canvas id="game-canvas" aria-label="Shill TakeOver game. Hold or tap to float upward." role="img"></canvas>
+        <div class="chase-warning" id="chase-warning" role="alert" aria-live="assertive" hidden>BIBI IS COMING!</div>
+
+        <section class="screen start-screen" id="start-screen" aria-labelledby="start-title">
+          <div class="start-card">
+            <div class="start-copy">
+              <p class="eyebrow">A sky-high survival game</p>
+              <h1 id="start-title">SHILL<br />TAKEOVER</h1>
+              <p class="intro">Float through the storefront skies. Dodge Floaters. Collect feet. Make it past 25 and Bibi joins the chase.</p>
+              <div class="controls-hint"><span class="tap-icon" aria-hidden="true">↕</span><span><strong>HOLD TO RISE</strong><br />Release to drift down</span></div>
+              <button class="primary-button" id="start-button" type="button">TAP TO PLAY</button>
+              <p class="keyboard-hint">Touch · mouse · Space · ↑</p>
+            </div>
+            <figure class="art-frame hero-art"><img id="start-art" alt="The Shill TakeOver main character" /></figure>
+          </div>
+        </section>
+
+        <section class="screen pause-screen" id="pause-screen" aria-labelledby="pause-title" hidden>
+          <div class="message-card"><p class="eyebrow">Run paused</p><h2 id="pause-title">Take a breath.</h2><button class="primary-button" id="resume-button" type="button">RESUME</button></div>
+        </section>
+
+        <section class="screen game-over-screen" id="game-over-screen" aria-labelledby="game-over-title" hidden>
+          <div class="game-over-card">
+            <figure class="art-frame end-art"><img id="game-over-art" alt="Game over artwork" /></figure>
+            <div class="end-copy"><p class="eyebrow">Run ended</p><h2 id="game-over-title">ITS OVER Bibi and his men got you</h2><p class="tap-note">Tap anywhere to see your results</p></div>
+            <button class="screen-tap-target" id="continue-button" type="button" aria-label="Continue to results"></button>
+          </div>
+        </section>
+
+        <section class="screen results-screen" id="results-screen" aria-labelledby="results-title" hidden>
+          <div class="results-card">
+            <figure class="art-frame fellas-art"><img id="results-art" alt="The fellas after the run" /></figure>
+            <div class="results-copy">
+              <p class="eyebrow">Run recap</p>
+              <h2 id="results-title">Good try, mate. Want to try again?</h2>
+              <p class="tap-note">Final results</p>
+              <dl class="result-list">
+                <div><dt>Survival time</dt><dd id="final-time">0.0s</dd></div>
+                <div><dt>Personal best</dt><dd id="final-best">0.0s</dd></div>
+                <div><dt>Feet collected</dt><dd id="final-feet">0</dd></div>
+              </dl>
+              <button class="primary-button" id="play-again-button" type="button">PLAY AGAIN</button>
+              <p class="local-note">Personal best is saved on this device only.</p>
+            </div>
+          </div>
+        </section>
+</section>
+
+      <footer class="bottom-note"><span>SPRINGHILL SKYWAYS</span><span>25 FEET UNLOCKS THE CHASE</span></footer>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
