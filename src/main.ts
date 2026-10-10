@@ -154,3 +154,15 @@ void assetsPromise.then((assets) => {
 for (const screen of gameScreens) {
   screen.addEventListener("dragstart", (event) => event.preventDefault());
 }
+
+// iOS Safari ignores user-scalable=no, so block page pan/zoom/selection gestures directly.
+document.addEventListener("touchmove", (event) => {
+  if (!(event.target as Element).closest(".screen")) event.preventDefault();
+}, { passive: false });
+for (const type of ["gesturestart", "gesturechange", "contextmenu", "selectstart", "dblclick"]) {
+  document.addEventListener(type, (event) => event.preventDefault());
+}
+window.addEventListener("blur", () => {
+  liftKeyDown = false;
+  game?.setLift(false);
+});

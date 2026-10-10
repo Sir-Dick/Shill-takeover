@@ -199,7 +199,7 @@ export class ShillGame {
     this.canvas.height = Math.round(this.height * this.dpr);
     this.context.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.groundY = this.height * 0.88;
-    this.playerHeight = Math.max(86, Math.min(138, this.height * 0.19));
+    this.playerHeight = Math.max(64, Math.min(138, this.height * 0.19));
     this.playerWidth = this.playerHeight * 0.74;
     this.playerX = this.width * 0.24;
     if (this.screen !== "running" || this.playerY + this.playerHeight > this.groundY) {
@@ -326,7 +326,7 @@ export class ShillGame {
   }
 
   private spawnFloater(): void {
-    const height = Math.max(82, Math.min(130, this.height * 0.212));
+    const height = Math.max(62, Math.min(130, this.height * 0.212));
     const width = height * this.imageAspect(this.assets.floater, 0.66);
     const minimumY = 24;
     const maximumY = Math.max(minimumY, this.groundY - height - 20);
@@ -341,7 +341,7 @@ export class ShillGame {
   }
 
   private spawnFoot(): void {
-    const size = Math.max(30, Math.min(48, this.height * 0.075));
+    const size = Math.max(38, Math.min(54, this.height * 0.085));
     const minimumY = this.height * 0.2;
     const maximumY = Math.max(minimumY, this.groundY - size - 15);
     this.feet.push({
@@ -451,7 +451,7 @@ export class ShillGame {
     const bubbleWidth = ctx.measureText(text).width + 26;
     const bubbleHeight = fontSize + 20;
     const x = Math.max(8, Math.min(this.width - bubbleWidth - 8, this.bibi.x + this.bibi.width * 0.5 - bubbleWidth * 0.3));
-    const above = this.bibi.y - bubbleHeight - 14 >= 6;
+    const above = this.bibi.y - bubbleHeight - 14 >= 70;
     const y = above ? this.bibi.y - bubbleHeight - 14 : this.bibi.y + this.bibi.height + 14;
     const tailX = Math.max(x + 16, Math.min(x + bubbleWidth - 16, this.bibi.x + this.bibi.width * 0.5));
     const tailBaseY = above ? y + bubbleHeight : y;
@@ -558,6 +558,13 @@ function drawContain(ctx: CanvasRenderingContext2D, image: CanvasImageSource, x:
 
 function drawFootShape(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, phase: number): void {
   const bob = Math.sin(phase) * 5;
+  const glow = ctx.createRadialGradient(x, y + bob, size * 0.2, x, y + bob, size * 1.05);
+  glow.addColorStop(0, "rgba(255, 233, 140, 0.85)");
+  glow.addColorStop(1, "rgba(255, 233, 140, 0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y + bob, size * 1.05, 0, Math.PI * 2);
+  ctx.fill();
   ctx.save();
   ctx.translate(x, y + bob);
   ctx.font = `${Math.round(size * 1.55)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
