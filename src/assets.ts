@@ -24,15 +24,15 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
   });
 }
 
-function isBlackPhotoMatte(r: number, g: number, b: number): boolean {
+function isBlackPhotoMatte(r: number, g: number, b: number, tolerance: number): boolean {
   const minimum = Math.min(r, g, b);
   const maximum = Math.max(r, g, b);
-  return minimum >= 12 && maximum <= 30 && maximum - minimum <= 8;
+  return minimum >= 12 && maximum <= 30 && maximum - minimum <= tolerance;
 }
 
 interface KeepRegion { left: number; right: number; top: number; bottom: number }
 
-function makePortraitCutout(image: HTMLImageElement, frameBounds: { left: number; right: number }, keep?: KeepRegion): HTMLCanvasElement | HTMLImageElement {
+function makePortraitCutout(image: HTMLImageElement, frameBounds: { left: number; right: number }, keep?: KeepRegion, tolerance = 8): HTMLCanvasElement | HTMLImageElement {
   const sourceX = Math.round(image.naturalWidth * frameBounds.left);
   const sourceWidth = Math.round(image.naturalWidth * (frameBounds.right - frameBounds.left));
   const scale = Math.min(1, 680 / Math.max(sourceWidth, image.naturalHeight));
@@ -57,7 +57,7 @@ function makePortraitCutout(image: HTMLImageElement, frameBounds: { left: number
       // Black clothing matches the black photo panel, so it must not be erased.
       if (keep && pixel % width >= keep.left * width && pixel % width <= keep.right * width && pixel >= keep.top * height * width) return;
       const offset = pixel * 4;
-      if (!isBlackPhotoMatte(data[offset], data[offset + 1], data[offset + 2])) return;
+      if (!isBlackPhotoMatte(data[offset], data[offset + 1], data[offset + 2], tolerance)) return;
       visited[pixel] = 1;
       queue[end++] = pixel;
     };
@@ -122,9 +122,11 @@ export async function loadGameAssets(): Promise<GameAssets> {
   for (const name of ["player", "floater", "bibi"] as const) {
     const image = assets[name];
     const keepPants = name === "player" ? { left: 0.235, right: 0.845, top: 0.78, bottom: 0.94 } : undefined;
-    // Nothing is protected for Bibi; this only trims the white photo border at the bottom.
-    const trimOnly = name === "bibi" ? { left: 2, right: 2, top: 2, bottom: 0.94 } : undefined;
-    if (image instanceof HTMLImageElement) assets[name] = makePortraitCutout(image, blackPanelBounds[name], keepPants ?? trimOnly);
+    // Bibi's matte is pure gray (18,18,18) but his sleeves are bluish, so a tight tolerance keeps them.
+    const trimOnly = name === "bibi" ? { left: 2, right: 2, top: 2, bottom: 0.9 } : undefined;
+    if (image instanceof HTMLImageElement) {
+      assets[name] = makePortraitCutout(image, blackPanelBounds[name], keepPants ?? trimOnly, name === "bibi" ? 3 : 8);
+    }
   }
   return assets;
 }
