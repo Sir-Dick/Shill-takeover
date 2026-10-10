@@ -294,7 +294,7 @@ export class ShillGame {
   }
 
   private beginChase(): void {
-    const size = this.playerHeight * 1.08;
+    const size = this.playerHeight * 0.918;
     const aspect = this.imageAspect(this.assets.bibi, 0.68);
     const width = size * aspect;
     this.bibi = {
