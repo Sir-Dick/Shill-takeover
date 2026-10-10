@@ -392,8 +392,8 @@ export class ShillGame {
     this.drawFeet();
     this.drawFloaters();
     this.drawBibi();
-    this.drawPlayer();
     this.drawBubble();
+    this.drawPlayer();
     this.drawGroundLine();
   }
 
