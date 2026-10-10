@@ -30,7 +30,9 @@ function isBlackPhotoMatte(r: number, g: number, b: number): boolean {
   return minimum >= 12 && maximum <= 30 && maximum - minimum <= 8;
 }
 
-function makePortraitCutout(image: HTMLImageElement, frameBounds: { left: number; right: number }): HTMLCanvasElement | HTMLImageElement {
+interface KeepRegion { left: number; right: number; top: number; bottom: number }
+
+function makePortraitCutout(image: HTMLImageElement, frameBounds: { left: number; right: number }, keep?: KeepRegion): HTMLCanvasElement | HTMLImageElement {
   const sourceX = Math.round(image.naturalWidth * frameBounds.left);
   const sourceWidth = Math.round(image.naturalWidth * (frameBounds.right - frameBounds.left));
   const scale = Math.min(1, 680 / Math.max(sourceWidth, image.naturalHeight));
@@ -52,6 +54,8 @@ function makePortraitCutout(image: HTMLImageElement, frameBounds: { left: number
 
     const addIfMatte = (pixel: number) => {
       if (pixel < 0 || pixel >= width * height || visited[pixel]) return;
+      // Black clothing matches the black photo panel, so it must not be erased.
+      if (keep && pixel % width >= keep.left * width && pixel % width <= keep.right * width && pixel >= keep.top * height * width) return;
       const offset = pixel * 4;
       if (!isBlackPhotoMatte(data[offset], data[offset + 1], data[offset + 2])) return;
       visited[pixel] = 1;
@@ -82,6 +86,7 @@ function makePortraitCutout(image: HTMLImageElement, frameBounds: { left: number
     for (let pixel = 0; pixel < width * height; pixel += 1) {
       const offset = pixel * 4;
       if (visited[pixel]) data[offset + 3] = 0;
+      if (keep && pixel >= keep.bottom * height * width) data[offset + 3] = 0;
       if (data[offset + 3] > 12) {
         const x = pixel % width;
         const y = Math.floor(pixel / width);
@@ -116,7 +121,8 @@ export async function loadGameAssets(): Promise<GameAssets> {
   } as const;
   for (const name of ["player", "floater", "bibi"] as const) {
     const image = assets[name];
-    if (image instanceof HTMLImageElement) assets[name] = makePortraitCutout(image, blackPanelBounds[name]);
+    const keepPants = name === "player" ? { left: 0.235, right: 0.845, top: 0.78, bottom: 0.94 } : undefined;
+    if (image instanceof HTMLImageElement) assets[name] = makePortraitCutout(image, blackPanelBounds[name], keepPants);
   }
   return assets;
 }

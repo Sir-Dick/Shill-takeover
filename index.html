@@ -11,16 +11,16 @@
     <main class="game-shell" id="game-shell">
       <header class="topbar">
         <a class="wordmark" href="#game" aria-label="Shill TakeOver home">SHILL <span>TAKEOVER</span></a>
-        <div class="hud" aria-live="polite" aria-label="Run statistics">
-          <div class="hud-stat"><span>TIME</span><strong id="time-value">0.0s</strong></div>
-          <div class="hud-stat"><span>BEST</span><strong id="best-value">0.0s</strong></div>
-          <div class="hud-stat feet-stat"><span>FEET</span><strong id="feet-value">0</strong></div>
-        </div>
         <button class="icon-button" id="mute-button" type="button" aria-label="Mute sound" title="Mute sound">♪</button>
       </header>
 
       <section class="play-area" id="game" aria-label="Game area">
         <canvas id="game-canvas" aria-label="Shill TakeOver game. Hold or tap to float upward." role="img"></canvas>
+        <div class="hud" aria-label="Run statistics">
+          <div class="hud-stat"><span>TIME</span><strong id="time-value">0.0s</strong></div>
+          <div class="hud-stat"><span>BEST</span><strong id="best-value">0.0s</strong></div>
+          <div class="hud-stat feet-stat"><span>FEET</span><strong id="feet-value">0</strong></div>
+        </div>
         <div class="chase-warning" id="chase-warning" role="alert" aria-live="assertive" hidden>BIBI IS COMING!</div>
 
         <section class="screen start-screen" id="start-screen" aria-labelledby="start-title">

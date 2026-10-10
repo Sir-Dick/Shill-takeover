@@ -38,10 +38,10 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
 .topbar { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 12px; }
 .wordmark { flex: 0 0 auto; color: #f5f1e6; font-family: "Barlow Condensed", Impact, sans-serif; font-size: 21px; font-weight: 900; letter-spacing: 0.3px; line-height: 0.88; text-decoration: none; }
 .wordmark span { display: block; color: var(--orange); }
-.hud { display: flex; align-items: center; justify-content: center; gap: clamp(9px, 3vw, 30px); margin-left: auto; }
-.hud-stat { display: grid; gap: 1px; min-width: 43px; text-align: right; }
-.hud-stat span { color: #b6c1c1; font-size: 8px; font-weight: 800; letter-spacing: 1.4px; }
-.hud-stat strong { font-family: "Barlow Condensed", Impact, sans-serif; font-size: 20px; font-weight: 800; line-height: 1; }
+.hud { position: absolute; z-index: 3; top: 12px; left: 12px; display: flex; align-items: center; gap: clamp(14px, 3vw, 30px); padding: 8px 16px; border: 1px solid #ffffff3d; border-radius: 12px; background: #0e1920b8; pointer-events: none; }
+.hud-stat { display: grid; gap: 1px; min-width: 52px; text-align: left; }
+.hud-stat span { color: #c5d0d0; font-size: 11px; font-weight: 800; letter-spacing: 1.6px; }
+.hud-stat strong { font-family: "Barlow Condensed", Impact, sans-serif; font-size: 32px; font-weight: 800; line-height: 1; }
 .feet-stat strong { color: var(--gold); }
 .icon-button { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border: 1px solid #ffffff45; border-radius: 50%; background: #ffffff12; color: var(--ink); cursor: pointer; font-size: 18px; }
 .icon-button:hover { background: #ffffff20; }
@@ -91,10 +91,10 @@ h1, h2, p { margin-top: 0; }
   .game-shell { gap: 8px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
   .topbar { min-height: 44px; gap: 8px; }
   .wordmark { font-size: 17px; }
-  .hud { gap: clamp(6px, 2vw, 13px); }
-  .hud-stat { min-width: 35px; }
-  .hud-stat span { font-size: 7px; letter-spacing: 0.9px; }
-  .hud-stat strong { font-size: 17px; }
+  .hud { top: 8px; left: 8px; gap: 12px; padding: 6px 11px; }
+  .hud-stat { min-width: 40px; }
+  .hud-stat span { font-size: 9px; letter-spacing: 1px; }
+  .hud-stat strong { font-size: 25px; }
   .icon-button { width: 37px; height: 37px; }
   .play-area { border-radius: 13px; }
   .start-card { grid-template-columns: minmax(0, 1fr) minmax(90px, 0.42fr); gap: 5px; padding: 20px 17px; }
@@ -122,7 +122,7 @@ h1, h2, p { margin-top: 0; }
 @media (max-height: 560px) and (orientation: landscape) {
   .game-shell { gap: 5px; }
   .topbar { min-height: 36px; }
-  .hud-stat strong { font-size: 16px; }
+  .hud-stat strong { font-size: 22px; }
   .start-card { grid-template-columns: 1fr 0.45fr; padding: 13px 22px; }
   .start-copy h1 { font-size: 46px; }
   .intro { margin: 9px 0; }
