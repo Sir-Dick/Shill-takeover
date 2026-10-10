@@ -421,7 +421,7 @@ export class ShillGame {
   }
 
   private drawFeet(): void {
-    for (const foot of this.feet) drawFootShape(this.context, foot.x, foot.y, foot.size, foot.phase);
+    for (const foot of this.feet) drawFootShape(this.context, foot.x, foot.y, foot.size, foot.phase, this.assets.foot);
   }
 
   private drawFloaters(): void {
@@ -556,8 +556,17 @@ function drawContain(ctx: CanvasRenderingContext2D, image: CanvasImageSource, x:
   ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
-function drawFootShape(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, phase: number): void {
+function drawFootShape(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, phase: number, image: CanvasImageSource | null): void {
   const bob = Math.sin(phase) * 5;
+  if (image) {
+    const drawSize = size * 1.6;
+    ctx.save();
+    ctx.translate(x, y + bob);
+    ctx.rotate(Math.sin(phase * 0.8) * 0.12);
+    ctx.drawImage(image, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+    ctx.restore();
+    return;
+  }
   const k = size * 0.62;
   // [centerX, centerY, radiusX, radiusY] in foot units: sole, arch, heel, then five toes.
   const parts: [number, number, number, number][] = [

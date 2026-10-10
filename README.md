@@ -39,3 +39,6 @@ Vite is configured with a relative base so built scripts and images work from a 
 ## Future shared leaderboard
 
 The current personal best uses `localStorage` on the current browser/device. No cross-device or shared leaderboard is claimed. A future leaderboard can be added behind a storage/service interface without changing local run mechanics.
+## Credits
+
+Foot graphic: Twemoji (c) Twitter/jdecked, licensed CC-BY 4.0 - https://github.com/jdecked/twemoji

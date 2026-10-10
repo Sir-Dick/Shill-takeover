@@ -1,4 +1,4 @@
-export type AssetName = "background" | "player" | "floater" | "bibi" | "gameOver" | "fellas";
+export type AssetName = "background" | "player" | "floater" | "bibi" | "gameOver" | "fellas" | "foot";
 
 const assetFiles: Record<AssetName, string> = {
   background: "background/IMG_4390.JPG",
@@ -7,6 +7,7 @@ const assetFiles: Record<AssetName, string> = {
   gameOver: "game-over/IMG_4379.jpg",
   fellas: "gameover-fellas/IMG_4408.jpg",
   player: "main-character/IMG_4410.jpg",
+  foot: "foot/foot.svg",
 };
 
 export type GameAssets = Record<AssetName, HTMLCanvasElement | HTMLImageElement | null>;
