@@ -326,7 +326,7 @@ export class ShillGame {
   }
 
   private spawnFloater(): void {
-    const height = Math.max(62, Math.min(130, this.height * 0.212));
+    const height = Math.max(50, Math.min(104, this.height * 0.17));
     const width = height * this.imageAspect(this.assets.floater, 0.66);
     const minimumY = 24;
     const maximumY = Math.max(minimumY, this.groundY - height - 20);
@@ -341,7 +341,7 @@ export class ShillGame {
   }
 
   private spawnFoot(): void {
-    const size = Math.max(38, Math.min(54, this.height * 0.085));
+    const size = Math.max(30, Math.min(42, this.height * 0.065));
     const minimumY = this.height * 0.2;
     const maximumY = Math.max(minimumY, this.groundY - size - 15);
     this.feet.push({
