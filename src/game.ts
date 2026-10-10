@@ -1,7 +1,7 @@
 import type { GameAssets } from "./assets";
 import {
   advanceSurvivalTime,
-  bibiCaught,
+  BIBI_CHASE_FEET,
   collectFoot,
   createRunStats,
   intersects,
@@ -23,10 +23,14 @@ const SETTINGS = {
   obstacleGapMin: 1.12,
   playerYFraction: 0.43,
   hitboxInset: 0.23,
-  bibiInitialSpeed: 52,
-  bibiAcceleration: 18,
+  bibiCatchUpRate: 2.6,
+  bibiFollowRate: 3.2,
+  bibiGap: 14,
+  bubbleSeconds: 1.8,
   maxDeltaSeconds: 0.04,
 } as const;
+
+const BIBI_LINES = ["Those are my feet!", "Get back here!", "I'm coming for you!"] as const;
 
 export interface HudData {
   time: number;
@@ -60,6 +64,11 @@ interface Chaser {
   age: number;
 }
 
+interface Bubble {
+  text: string;
+  age: number;
+}
+
 export class ShillGame {
   private readonly context: CanvasRenderingContext2D;
   private readonly resizeObserver: ResizeObserver;
@@ -78,6 +87,8 @@ export class ShillGame {
   private floaters: Floater[] = [];
   private feet: FootPickup[] = [];
   private bibi: Chaser | null = null;
+  private bubble: Bubble | null = null;
+  private lastLine = -1;
   private obstacleTimer = 1.2;
   private footTimer = 1.15;
   private chaseBannerTimer = 0;
@@ -119,6 +130,7 @@ export class ShillGame {
     this.floaters = [];
     this.feet = [];
     this.bibi = null;
+    this.bubble = null;
     this.velocityY = 0;
     this.holding = false;
     this.worldTime = 0;
@@ -127,6 +139,10 @@ export class ShillGame {
     this.footTimer = 0.9;
     this.chaseBannerTimer = 0;
     this.playerY = this.height * SETTINGS.playerYFraction;
+    if (new URLSearchParams(window.location.search).has("demo")) {
+      this.stats = { ...this.stats, feet: BIBI_CHASE_FEET, bibiTriggered: true };
+      this.beginChase();
+    }
     this.screen = "running";
     this.previousFrame = null;
     this.notifyHud();
@@ -256,17 +272,22 @@ export class ShillGame {
         this.stats = result.stats;
         feetChanged = true;
         if (result.chaseStarted) this.beginChase();
+        if (this.bibi) this.sayLine();
       }
     }
     this.feet = this.feet.filter((foot) => !foot.collected && foot.x > -40);
 
     if (this.bibi) {
-      this.bibi.age += delta;
-      this.bibi.x += (SETTINGS.bibiInitialSpeed + this.bibi.age * SETTINGS.bibiAcceleration) * delta;
-      if (bibiCaught(this.bibiRect(), player)) {
-        this.finishRun();
-        return;
-      }
+      const bibi = this.bibi;
+      bibi.age += delta;
+      const targetX = Math.max(-bibi.width * 0.3, this.playerX - bibi.width - SETTINGS.bibiGap);
+      const targetY = this.playerY + (this.playerHeight - bibi.height) / 2 + Math.sin(bibi.age * 5) * 4;
+      bibi.x += (targetX - bibi.x) * (1 - Math.exp(-SETTINGS.bibiCatchUpRate * delta));
+      bibi.y += (targetY - bibi.y) * (1 - Math.exp(-SETTINGS.bibiFollowRate * delta));
+    }
+    if (this.bubble) {
+      this.bubble.age += delta;
+      if (this.bubble.age >= SETTINGS.bubbleSeconds) this.bubble = null;
     }
 
     this.notifyHud(feetChanged || beforeFeet !== this.stats.feet);
@@ -277,14 +298,21 @@ export class ShillGame {
     const aspect = this.imageAspect(this.assets.bibi, 0.68);
     const width = size * aspect;
     this.bibi = {
-      x: Math.max(-width * 0.8, this.playerX - width - this.width * 0.22),
-      y: Math.max(10, this.playerY - size * 0.07),
+      x: -width * 1.2,
+      y: this.playerY + (this.playerHeight - size) / 2,
       width,
       height: size,
       age: 0,
     };
     this.chaseBannerTimer = 3.2;
     this.notifyHud();
+  }
+
+  private sayLine(): void {
+    let index = Math.floor(Math.random() * BIBI_LINES.length);
+    if (index === this.lastLine) index = (index + 1) % BIBI_LINES.length;
+    this.lastLine = index;
+    this.bubble = { text: BIBI_LINES[index], age: 0 };
   }
 
   private finishRun(): void {
@@ -342,11 +370,6 @@ export class ShillGame {
     return { x: foot.x - foot.size * 0.38, y: foot.y - foot.size * 0.35, width: foot.size * 0.76, height: foot.size * 0.72 };
   }
 
-  private bibiRect(): Rect {
-    if (!this.bibi) return { x: -10000, y: -10000, width: 0, height: 0 };
-    return { x: this.bibi.x + this.bibi.width * 0.2, y: this.bibi.y + this.bibi.height * 0.1, width: this.bibi.width * 0.6, height: this.bibi.height * 0.8 };
-  }
-
   private imageAspect(image: CanvasImageSource | null, fallback: number): number {
     if (!image) return fallback;
     const candidate = image as HTMLImageElement | HTMLCanvasElement;
@@ -370,6 +393,7 @@ export class ShillGame {
     this.drawFloaters();
     this.drawBibi();
     this.drawPlayer();
+    this.drawBubble();
     this.drawGroundLine();
   }
 
@@ -413,6 +437,49 @@ export class ShillGame {
     const width = this.bibi.width * pulse;
     const height = this.bibi.height * pulse;
     drawPortrait(this.context, this.assets.bibi, this.bibi.x, this.bibi.y, width, height, "bibiFallback");
+  }
+
+  private drawBubble(): void {
+    if (!this.bibi || !this.bubble) return;
+    const ctx = this.context;
+    const { text, age } = this.bubble;
+    const pop = Math.min(1, age / 0.18);
+    const fade = Math.min(1, (SETTINGS.bubbleSeconds - age) / 0.3);
+    const fontSize = Math.max(15, Math.min(24, this.playerHeight * 0.2));
+    ctx.save();
+    ctx.font = `900 ${fontSize}px "Barlow Condensed", Impact, sans-serif`;
+    const bubbleWidth = ctx.measureText(text).width + 26;
+    const bubbleHeight = fontSize + 20;
+    const x = Math.max(8, Math.min(this.width - bubbleWidth - 8, this.bibi.x + this.bibi.width * 0.5 - bubbleWidth * 0.3));
+    const above = this.bibi.y - bubbleHeight - 14 >= 6;
+    const y = above ? this.bibi.y - bubbleHeight - 14 : this.bibi.y + this.bibi.height + 14;
+    const tailX = Math.max(x + 16, Math.min(x + bubbleWidth - 16, this.bibi.x + this.bibi.width * 0.5));
+    const tailBaseY = above ? y + bubbleHeight : y;
+    const tailTipY = above ? tailBaseY + 12 : tailBaseY - 12;
+    ctx.globalAlpha = Math.max(0, fade);
+    ctx.translate(x + bubbleWidth / 2, above ? y + bubbleHeight : y);
+    ctx.scale(0.6 + 0.4 * pop, 0.6 + 0.4 * pop);
+    ctx.translate(-(x + bubbleWidth / 2), -(above ? y + bubbleHeight : y));
+    ctx.fillStyle = "#fff8e8";
+    ctx.strokeStyle = "#18232b";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(x, y, bubbleWidth, bubbleHeight, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tailX - 8, tailBaseY);
+    ctx.lineTo(tailX, tailTipY);
+    ctx.lineTo(tailX + 8, tailBaseY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillRect(tailX - 6, above ? tailBaseY - 3 : tailBaseY - 1, 12, 4);
+    ctx.fillStyle = "#18232b";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x + bubbleWidth / 2, y + bubbleHeight / 2 + 1);
+    ctx.restore();
   }
 
   private drawPlayer(): void {

@@ -122,7 +122,9 @@ export async function loadGameAssets(): Promise<GameAssets> {
   for (const name of ["player", "floater", "bibi"] as const) {
     const image = assets[name];
     const keepPants = name === "player" ? { left: 0.235, right: 0.845, top: 0.78, bottom: 0.94 } : undefined;
-    if (image instanceof HTMLImageElement) assets[name] = makePortraitCutout(image, blackPanelBounds[name], keepPants);
+    // Nothing is protected for Bibi; this only trims the white photo border at the bottom.
+    const trimOnly = name === "bibi" ? { left: 2, right: 2, top: 2, bottom: 0.94 } : undefined;
+    if (image instanceof HTMLImageElement) assets[name] = makePortraitCutout(image, blackPanelBounds[name], keepPants ?? trimOnly);
   }
   return assets;
 }
