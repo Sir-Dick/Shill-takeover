@@ -377,7 +377,7 @@ export class ShillGame {
     const ctx = this.context;
     const background = this.assets.background;
     if (background) {
-      drawCover(ctx, background, -6, 0, this.width + 12, this.height);
+      drawCover(ctx, background, -6, 0, this.width + 12, this.height, { top: 0.1, right: 0.12 });
       ctx.fillStyle = "rgba(28, 45, 56, 0.23)";
       ctx.fillRect(0, 0, this.width, this.height);
     } else {
@@ -437,15 +437,37 @@ export class ShillGame {
   }
 }
 
-function drawCover(ctx: CanvasRenderingContext2D, image: CanvasImageSource, x: number, y: number, width: number, height: number): void {
+function drawCover(
+  ctx: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  crop: { top: number; right: number },
+): void {
   const source = image as HTMLImageElement | HTMLCanvasElement;
-  const sourceWidth = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
-  const sourceHeight = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
-  if (!sourceWidth || !sourceHeight) return;
+  const imageWidth = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+  const imageHeight = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+  if (!imageWidth || !imageHeight) return;
+  const sourceX = 0;
+  const sourceY = imageHeight * crop.top;
+  const sourceWidth = imageWidth * (1 - crop.right);
+  const sourceHeight = imageHeight - sourceY;
   const scale = Math.max(width / sourceWidth, height / sourceHeight);
   const drawWidth = sourceWidth * scale;
   const drawHeight = sourceHeight * scale;
-  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+  ctx.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    x + (width - drawWidth) / 2,
+    y + (height - drawHeight) / 2,
+    drawWidth,
+    drawHeight,
+  );
 }
 
 function drawPortrait(ctx: CanvasRenderingContext2D, image: CanvasImageSource | null, x: number, y: number, width: number, height: number, fallback: "playerFallback" | "floaterFallback" | "bibiFallback"): void {
