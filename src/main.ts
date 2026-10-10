@@ -26,6 +26,19 @@ let gameOverTapLockUntil = 0;
 let soundEnabled = true;
 let audioContext: AudioContext | null = null;
 
+function fitScreenCards(): void {
+  for (const screen of gameScreens) {
+    const card = screen.firstElementChild as HTMLElement | null;
+    if (!card || screen.hidden) continue;
+    card.style.transform = "";
+    const style = getComputedStyle(screen);
+    const availableWidth = screen.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const availableHeight = screen.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    const scale = Math.min(1, availableWidth / card.offsetWidth, availableHeight / card.offsetHeight);
+    if (scale < 1) card.style.transform = `scale(${scale})`;
+  }
+}
+
 function showScreen(screen: Screen, lockedUntil = 0): void {
   currentScreen = screen;
   gameOverTapLockUntil = screen === "game-over" ? Math.max(performance.now() + 380, lockedUntil) : 0;
@@ -33,6 +46,7 @@ function showScreen(screen: Screen, lockedUntil = 0): void {
   pauseScreen.hidden = screen !== "paused";
   gameOverScreen.hidden = screen !== "game-over";
   resultsScreen.hidden = screen !== "results";
+  fitScreenCards();
   canvas.setAttribute("aria-label", screen === "running"
     ? "Game in progress. Hold or tap to float upward, release to drift down."
     : "Shill TakeOver game scene.");
@@ -156,9 +170,7 @@ for (const screen of gameScreens) {
 }
 
 // iOS Safari ignores user-scalable=no, so block page pan/zoom/selection gestures directly.
-document.addEventListener("touchmove", (event) => {
-  if (!(event.target as Element).closest(".screen")) event.preventDefault();
-}, { passive: false });
+document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
 for (const type of ["gesturestart", "gesturechange", "contextmenu", "selectstart", "dblclick"]) {
   document.addEventListener(type, (event) => event.preventDefault());
 }
@@ -166,3 +178,11 @@ window.addEventListener("blur", () => {
   liftKeyDown = false;
   game?.setLift(false);
 });
+
+const fitObserver = new ResizeObserver(fitScreenCards);
+for (const screen of gameScreens) {
+  fitObserver.observe(screen);
+  if (screen.firstElementChild) fitObserver.observe(screen.firstElementChild);
+}
+window.addEventListener("orientationchange", fitScreenCards);
+void document.fonts?.ready.then(fitScreenCards);
