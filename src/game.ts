@@ -558,19 +558,38 @@ function drawContain(ctx: CanvasRenderingContext2D, image: CanvasImageSource, x:
 
 function drawFootShape(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, phase: number): void {
   const bob = Math.sin(phase) * 5;
-  const glow = ctx.createRadialGradient(x, y + bob, size * 0.2, x, y + bob, size * 1.05);
-  glow.addColorStop(0, "rgba(255, 233, 140, 0.85)");
-  glow.addColorStop(1, "rgba(255, 233, 140, 0)");
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(x, y + bob, size * 1.05, 0, Math.PI * 2);
-  ctx.fill();
+  const k = size * 0.62;
+  // [centerX, centerY, radiusX, radiusY] in foot units: sole, arch, heel, then five toes.
+  const parts: [number, number, number, number][] = [
+    [0, -0.2, 0.5, 0.6],
+    [0.12, 0.12, 0.3, 0.36],
+    [0.05, 0.47, 0.32, 0.42],
+    [-0.3, -0.8, 0.19, 0.19],
+    [-0.06, -0.86, 0.13, 0.13],
+    [0.14, -0.8, 0.12, 0.12],
+    [0.3, -0.7, 0.11, 0.11],
+    [0.41, -0.56, 0.1, 0.1],
+  ];
   ctx.save();
   ctx.translate(x, y + bob);
-  ctx.font = `${Math.round(size * 1.55)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("🦶", 0, 0);
+  ctx.rotate(-0.3 + Math.sin(phase * 0.8) * 0.12);
+  // Outline pass first so overlapping parts merge into one silhouette.
+  ctx.fillStyle = "#3a2417";
+  for (const [cx, cy, rx, ry] of parts) {
+    ctx.beginPath();
+    ctx.ellipse(cx * k, cy * k, rx * k + 3, ry * k + 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#f4c796";
+  for (const [cx, cy, rx, ry] of parts) {
+    ctx.beginPath();
+    ctx.ellipse(cx * k, cy * k, rx * k, ry * k, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+  ctx.beginPath();
+  ctx.ellipse(-0.12 * k, -0.35 * k, 0.16 * k, 0.3 * k, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
