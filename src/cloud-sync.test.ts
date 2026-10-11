@@ -93,6 +93,20 @@ describe("cloud score sync", () => {
     expect(console.error).toHaveBeenCalledWith("[Firebase] player write failed (PERMISSION_DENIED).");
   });
 
+  it("logs the permission code from Firebase database errors without a code property", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const storage = createStorage();
+    const gateway: CloudGateway = {
+      authenticate: async () => "stable-uid",
+      syncPlayer: async () => { throw new Error("permission_denied at nicknameClaims"); },
+    };
+    const profile = savePlayerProfile(storage, "Pilot", null, () => "local-id")!;
+    const result = await new PlayerCloudSync(gateway, storage).connect(profile);
+
+    expect(result.ok).toBe(false);
+    expect(console.error).toHaveBeenCalledWith("[Firebase] player write failed (PERMISSION_DENIED).");
+  });
+
   it("surfaces a nickname conflict without losing queued score records", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const storage = createStorage();

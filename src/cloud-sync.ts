@@ -79,8 +79,13 @@ export class PlayerCloudSync {
 }
 
 function readErrorCode(error: unknown): string | null {
-  if (typeof error !== "object" || error === null || !("code" in error)) return null;
-  return typeof error.code === "string" ? error.code : null;
+  if (typeof error !== "object" || error === null) return null;
+  if ("code" in error && typeof error.code === "string") return error.code;
+  if (error instanceof Error) {
+    const match = error.message.match(/\b(permission_denied|network_error|disconnected|unavailable)\b/i);
+    if (match) return match[1].toUpperCase();
+  }
+  return null;
 }
 
 function hasUpload(update: PendingUpload): boolean {
