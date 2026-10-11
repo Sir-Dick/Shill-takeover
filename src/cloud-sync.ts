@@ -55,7 +55,9 @@ export class PlayerCloudSync {
   }
 
   private logFailure(phase: "authentication" | "player write", error: unknown): void {
-    if (import.meta.env.DEV) console.error(`[Firebase] ${phase} failed.`, error);
+    if (!import.meta.env.DEV) return;
+    const code = readErrorCode(error);
+    console.error(`[Firebase] ${phase} failed (${code ?? "unknown error"}).`);
   }
 
   private isProfileSynced(profile: PlayerProfile): boolean {
@@ -74,6 +76,11 @@ export class PlayerCloudSync {
       // A future launch can safely retry the idempotent transaction.
     }
   }
+}
+
+function readErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null || !("code" in error)) return null;
+  return typeof error.code === "string" ? error.code : null;
 }
 
 function hasUpload(update: PendingUpload): boolean {

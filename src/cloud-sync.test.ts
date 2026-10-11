@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PlayerCloudSync, type CloudGateway } from "./cloud-sync";
 import { loadPlayerProfile, savePlayerProfile } from "./profile";
-import { readPendingUpload, recordRun, type PendingUpload } from "./score-store";
+import { queuePendingUpload, readPendingUpload, recordRun, type PendingUpload } from "./score-store";
+import { NicknameAlreadyTakenError } from "./nickname-claims";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -89,6 +90,22 @@ describe("cloud score sync", () => {
 
     expect(result).toEqual({ ok: false, profile: { ...profile, firebaseUid: "stable-uid" }, phase: "write", error: firebaseError });
     expect(readPendingUpload(storage)).toEqual({ nickname: "Pilot" });
-    expect(console.error).toHaveBeenCalledWith("[Firebase] player write failed.", firebaseError);
+    expect(console.error).toHaveBeenCalledWith("[Firebase] player write failed (PERMISSION_DENIED).");
+  });
+
+  it("surfaces a nickname conflict without losing queued score records", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const storage = createStorage();
+    recordRun(storage, 9.5, 7);
+    queuePendingUpload(storage, { nickname: "Claimed Name" });
+    const gateway: CloudGateway = {
+      authenticate: async () => "stable-uid",
+      syncPlayer: async () => { throw new NicknameAlreadyTakenError(); },
+    };
+    const profile = savePlayerProfile(storage, "Claimed Name", null, () => "local-id")!;
+    const result = await new PlayerCloudSync(gateway, storage).connect(profile);
+
+    expect(result).toMatchObject({ ok: false, phase: "write", error: { code: "nickname/already-exists" } });
+    expect(readPendingUpload(storage)).toEqual({ nickname: "Claimed Name", bestFeet: 7, bestSurvivalMs: 9500 });
   });
 });

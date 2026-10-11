@@ -10,11 +10,11 @@ import {
   intersectsWithClearance,
   nextHomeScreen,
   readPersonalBest,
-  savePersonalBest,
   type Rect,
   type RunStats,
   type Screen,
 } from "./mechanics";
+import { recordRun } from "./score-store";
 
 const BEST_KEY = "shill-takeover-best";
 const BEST_FEET_KEY = `${BEST_KEY}-feet`;
@@ -341,15 +341,11 @@ export class ShillGame {
     if (this.screen !== "running") return;
     this.holding = false;
     const finalRun = { time: this.stats.elapsedSeconds, feet: this.stats.feet };
-    const previousBest = this.best;
-    const previousBestFeet = this.bestFeet;
     this.finalRun = finalRun;
-    this.best = savePersonalBest(localStorage, BEST_KEY, this.stats.elapsedSeconds);
-    this.bestFeet = savePersonalBest(localStorage, BEST_FEET_KEY, this.stats.feet);
-    void submitNewPersonalBest({
-      ...(finalRun.feet > previousBestFeet ? { bestFeet: finalRun.feet } : {}),
-      ...(finalRun.time > previousBest ? { bestSurvivalMs: Math.round(finalRun.time * 1000) } : {}),
-    });
+    const result = recordRun(localStorage, finalRun.time, finalRun.feet);
+    this.best = result.bestTimeSeconds;
+    this.bestFeet = result.bestFeet;
+    void submitNewPersonalBest(result.improvements);
     this.screen = "game-over";
     this.gameOverUnlockedAt = performance.now() + 450;
     this.notifyHud();

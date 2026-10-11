@@ -7,7 +7,7 @@
       ".indexOn": ["bestFeet", "bestSurvivalMs"],
       "$uid": {
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['nickname', 'bestFeet', 'bestSurvivalMs', 'updatedAt'])",
+        ".validate": "newData.hasChildren(['nickname', 'bestFeet', 'bestSurvivalMs', 'updatedAt']) && newData.child('nickname').isString() && root.child('nicknameClaims').child(newData.child('nickname').val().toLowerCase()).val() === $uid",
         "nickname": {
           ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 16 && newData.val().matches(/^[A-Za-z0-9 _-]+$/)"
         },
@@ -23,6 +23,13 @@
         "$other": {
           ".validate": false
         }
+      }
+    },
+    "nicknameClaims": {
+      "$nicknameKey": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.val() === auth.uid)",
+        ".validate": "newData.isString() && newData.val() === auth.uid && $nicknameKey.matches(/^[a-z0-9 _-]{2,16}$/)"
       }
     }
   }

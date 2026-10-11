@@ -5,6 +5,9 @@ import { ShillGame, type HudData } from "./game";
 import { buildLeaderboardRows, emptyLeaderboardMessage, type LeaderboardCategory } from "./leaderboard-model";
 import { nextGameOverScreen, type Screen } from "./mechanics";
 import { loadPlayerProfile, normalizeNickname, savePlayerProfile, type PlayerProfile } from "./profile";
+import { migrateLocalScoresForFreshLeaderboard, queuePendingUpload } from "./score-store";
+
+migrateLocalScoresForFreshLeaderboard(localStorage);
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas")!;
 const startScreen = document.querySelector<HTMLElement>("#start-screen")!;
@@ -121,9 +124,9 @@ function playUiTone(frequency: number, duration: number): void {
   oscillator.stop(now + duration + 0.01);
 }
 
-function openNicknameSetup(): void {
-  nicknameError.textContent = "";
-  nicknameInput.value = playerProfile?.nickname ?? "";
+function openNicknameSetup(message = "", value = playerProfile?.nickname ?? ""): void {
+  nicknameError.textContent = message;
+  nicknameInput.value = value;
   cancelNicknameButton.hidden = !playerProfile;
   nicknameScreen.hidden = false;
   leaderboardScreen.hidden = true;
@@ -131,28 +134,40 @@ function openNicknameSetup(): void {
   if (playerProfile) nicknameInput.focus();
 }
 
-nicknameForm.addEventListener("submit", (event) => {
+nicknameForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const nickname = normalizeNickname(nicknameInput.value);
   if (!nickname) {
     nicknameError.textContent = "Use 2–16 letters, numbers, spaces, underscores, or hyphens.";
     return;
   }
+  const previousProfile = playerProfile;
   const profile = savePlayerProfile(localStorage, nickname, playerProfile);
   if (!profile) {
     nicknameError.textContent = "This browser could not save your nickname. Check its storage settings and try again.";
     return;
   }
   updateProfileDisplay(profile);
+  const result = await connectPlayerProfile(profile);
+  const connected = result.profile;
+  if (connected && playerProfile?.localId === connected.localId) updateProfileDisplay(connected);
+  if (isNicknameConflict(result)) {
+    if (previousProfile && connected) {
+      const restored = savePlayerProfile(localStorage, previousProfile.nickname, connected);
+      if (restored) updateProfileDisplay(restored);
+      queuePendingUpload(localStorage, { nickname: previousProfile.nickname });
+    }
+    nicknameScreen.hidden = false;
+    startScreen.hidden = true;
+    nicknameInput.value = nickname;
+    nicknameError.textContent = "That nickname is already in use. Choose another.";
+    return;
+  }
   nicknameScreen.hidden = true;
   startScreen.hidden = false;
-  void connectPlayerProfile(profile).then((result) => {
-    const connected = result.profile;
-    if (connected && playerProfile?.localId === connected.localId) updateProfileDisplay(connected);
-  });
 });
 
-changeNicknameButton.addEventListener("click", openNicknameSetup);
+changeNicknameButton.addEventListener("click", () => openNicknameSetup());
 cancelNicknameButton.addEventListener("click", () => {
   nicknameScreen.hidden = true;
   startScreen.hidden = false;
@@ -305,7 +320,14 @@ void assetsPromise.then((assets) => {
 void connectPlayerProfile(playerProfile).then((result) => {
   const profile = result.profile;
   if (profile && (!playerProfile || playerProfile.localId === profile.localId)) updateProfileDisplay(profile);
+  if (isNicknameConflict(result) && profile) openNicknameSetup("That nickname is already in use. Choose another.", profile.nickname);
 });
+
+function isNicknameConflict(result: Awaited<ReturnType<typeof connectPlayerProfile>>): boolean {
+  return !result.ok && result.phase === "write" &&
+    typeof result.error === "object" && result.error !== null &&
+    "code" in result.error && result.error.code === "nickname/already-exists";
+}
 
 window.addEventListener("online", () => {
   void retryPendingUploads(playerProfile);

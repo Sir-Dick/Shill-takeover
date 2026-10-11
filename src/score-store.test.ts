@@ -4,6 +4,8 @@ import {
   BEST_FEET_KEY,
   BEST_TIME_KEY,
   clearPendingUpload,
+  LEADERBOARD_RESET_VERSION_KEY,
+  migrateLocalScoresForFreshLeaderboard,
   PENDING_UPLOAD_KEY,
   queuePendingUpload,
   readLocalScores,
@@ -55,5 +57,22 @@ describe("local score storage", () => {
     expect(readPendingUpload(storage)).toEqual({ bestSurvivalMs: 14000 });
     expect(readPersonalBest(storage, BEST_TIME_KEY)).toBe(0);
     expect(storage.getItem(PENDING_UPLOAD_KEY)).not.toBeNull();
+  });
+
+  it("resets local records and stale score uploads once while preserving nickname", () => {
+    const storage = createStorage();
+    storage.setItem(BEST_TIME_KEY, "45.25");
+    storage.setItem(BEST_FEET_KEY, "31");
+    storage.setItem(PENDING_UPLOAD_KEY, JSON.stringify({ nickname: "Pilot", bestFeet: 31, bestSurvivalMs: 45250 }));
+
+    expect(migrateLocalScoresForFreshLeaderboard(storage)).toBe(true);
+    expect(readLocalScores(storage)).toEqual({ bestTimeSeconds: 0, bestFeet: 0 });
+    expect(readPendingUpload(storage)).toEqual({ nickname: "Pilot" });
+    expect(storage.getItem(LEADERBOARD_RESET_VERSION_KEY)).toBe("1");
+
+    expect(recordRun(storage, 6.5, 4).improvements).toEqual({ bestSurvivalMs: 6500, bestFeet: 4 });
+    expect(migrateLocalScoresForFreshLeaderboard(storage)).toBe(false);
+    expect(readLocalScores(storage)).toEqual({ bestTimeSeconds: 6.5, bestFeet: 4 });
+    expect(readPendingUpload(storage)).toEqual({ nickname: "Pilot", bestFeet: 4, bestSurvivalMs: 6500 });
   });
 });

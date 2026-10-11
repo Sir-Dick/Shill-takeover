@@ -3,6 +3,8 @@ import { readPersonalBest, savePersonalBest, type KeyValueStorage } from "./mech
 export const BEST_TIME_KEY = "shill-takeover-best";
 export const BEST_FEET_KEY = `${BEST_TIME_KEY}-feet`;
 export const PENDING_UPLOAD_KEY = "shill-takeover-pending-upload";
+export const LEADERBOARD_RESET_VERSION_KEY = "shill-takeover-leaderboard-reset-version";
+const LEADERBOARD_RESET_VERSION = "1";
 
 export interface ScoreStorage extends KeyValueStorage {
   removeItem?(key: string): void;
@@ -28,6 +30,20 @@ export function readLocalScores(storage: ScoreStorage): { bestTimeSeconds: numbe
     bestTimeSeconds: readPersonalBest(storage, BEST_TIME_KEY),
     bestFeet: Math.floor(readPersonalBest(storage, BEST_FEET_KEY)),
   };
+}
+
+export function migrateLocalScoresForFreshLeaderboard(storage: ScoreStorage): boolean {
+  try {
+    if (storage.getItem(LEADERBOARD_RESET_VERSION_KEY) === LEADERBOARD_RESET_VERSION) return false;
+    const pending = readPendingUpload(storage);
+    storage.setItem(BEST_TIME_KEY, "0");
+    storage.setItem(BEST_FEET_KEY, "0");
+    storage.setItem(PENDING_UPLOAD_KEY, JSON.stringify(pending.nickname ? { nickname: pending.nickname } : {}));
+    storage.setItem(LEADERBOARD_RESET_VERSION_KEY, LEADERBOARD_RESET_VERSION);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function recordRun(storage: ScoreStorage, timeSeconds: number, feet: number): RecordedRun {

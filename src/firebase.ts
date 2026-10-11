@@ -5,10 +5,11 @@ import { PlayerCloudSync, type CloudSyncResult } from "./cloud-sync";
 import { queuePendingUpload, type PendingUpload, type ScoreImprovements } from "./score-store";
 import type { LeaderboardCategory, LeaderboardEntry } from "./leaderboard-model";
 import { mergePlayerRecord, type PlayerRecord } from "./player-record";
+import { normalizedNicknameKey, reserveNickname } from "./nickname-claims";
 import { loadPlayerProfile, normalizeNickname } from "./profile";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAY9VpKegXiTBZgKCHW1tgV2nJGfaQY5GZw",
+  apiKey: "AIzaSyA9VpKegXiTBZgKCHW1tgV2nJGfaQY5GZw",
   authDomain: "shill-takeover.firebaseapp.com",
   databaseURL: "https://shill-takeover-default-rtdb.firebaseio.com",
   projectId: "shill-takeover",
@@ -37,17 +38,46 @@ export function authenticatePlayer(): Promise<string> {
 }
 
 export async function syncPlayer(uid: string, nickname: string, update: PendingUpload): Promise<void> {
+  const claim = await reserveNickname(nickname, uid, async (key, claimUid) => {
+    const result = await runTransaction(ref(database, `nicknameClaims/${key}`), (current) => {
+      if (current === null) return claimUid;
+      return;
+    }, { applyLocally: false });
+    const value = result.snapshot.val();
+    return {
+      committed: result.committed,
+      value: typeof value === "string" ? value : null,
+    };
+  });
   const playerRef = ref(database, `players/${uid}`);
-  await runTransaction(playerRef, (current) => {
-    const merged = mergePlayerRecord(current as Partial<PlayerRecord> | null, nickname, update, Date.now());
-    if (
-      current &&
-      current.nickname === merged.nickname &&
-      current.bestFeet === merged.bestFeet &&
-      current.bestSurvivalMs === merged.bestSurvivalMs
-    ) return;
-    return merged;
-  }, { applyLocally: false });
+  let previousNickname: string | null = null;
+  try {
+    await runTransaction(playerRef, (current) => {
+      previousNickname = typeof current?.nickname === "string" ? current.nickname : null;
+      const merged = mergePlayerRecord(current as Partial<PlayerRecord> | null, nickname, update, Date.now());
+      if (
+        current &&
+        current.nickname === merged.nickname &&
+        current.bestFeet === merged.bestFeet &&
+        current.bestSurvivalMs === merged.bestSurvivalMs
+      ) return;
+      return merged;
+    }, { applyLocally: false });
+  } catch (error) {
+    if (claim.newlyClaimed && (!previousNickname || normalizedNicknameKey(previousNickname) !== claim.key)) {
+      await releaseNicknameClaim(claim.key, uid);
+    }
+    throw error;
+  }
+  if (previousNickname && normalizedNicknameKey(previousNickname) !== claim.key) {
+    await releaseNicknameClaim(normalizedNicknameKey(previousNickname), uid);
+  }
+}
+
+async function releaseNicknameClaim(key: string, uid: string): Promise<void> {
+  await runTransaction(ref(database, `nicknameClaims/${key}`), (current) => current === uid ? null : undefined, {
+    applyLocally: false,
+  });
 }
 
 export async function fetchLeaderboard(category: LeaderboardCategory): Promise<LeaderboardEntry[]> {
@@ -69,7 +99,10 @@ export async function fetchLeaderboard(category: LeaderboardCategory): Promise<L
       );
     });
   } catch (error: unknown) {
-    if (import.meta.env.DEV) console.error("[Firebase] Leaderboard read failed.", error);
+    if (import.meta.env.DEV) {
+      const code = readErrorCode(error) ?? (error instanceof Error && error.message === "Leaderboard request timed out." ? "TIMEOUT" : "unknown error");
+      console.error(`[Firebase] Leaderboard read failed (${code}).`);
+    }
     throw error;
   }
   const entries: LeaderboardEntry[] = [];
@@ -105,4 +138,9 @@ export async function submitNewPersonalBest(improvements: ScoreImprovements): Pr
   const profile = loadPlayerProfile(localStorage);
   if (!profile) return null;
   return playerCloudSync.flushPending(profile);
+}
+
+function readErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null || !("code" in error)) return null;
+  return typeof error.code === "string" ? error.code : null;
 }
