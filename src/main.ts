@@ -63,6 +63,7 @@ function updateHud(data: HudData, warningVisible: boolean): void {
     document.querySelector<HTMLElement>("#final-time")!.textContent = `${data.time.toFixed(1)}s`;
     document.querySelector<HTMLElement>("#final-best")!.textContent = `${data.best.toFixed(1)}s`;
     document.querySelector<HTMLElement>("#final-feet")!.textContent = String(data.feet);
+    document.querySelector<HTMLElement>("#final-best-feet")!.textContent = String(data.bestFeet);
   }
 }
 

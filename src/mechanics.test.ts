@@ -4,7 +4,9 @@ import {
   bibiCaught,
   collectFoot,
   createRunStats,
+  isOutsidePlayArea,
   intersects,
+  intersectsWithClearance,
   nextGameOverScreen,
   readPersonalBest,
   savePersonalBest,
@@ -17,17 +19,23 @@ describe("run mechanics", () => {
     expect(advanceSurvivalTime(4.25, -2, true)).toBe(4.25);
   });
 
-  it("counts feet and starts Bibi exactly on foot 25, only once", () => {
-    let stats = { ...createRunStats(), feet: 23 };
-    const foot24 = collectFoot(stats);
-    expect(foot24.stats.feet).toBe(24);
-    expect(foot24.chaseStarted).toBe(false);
-    const foot25 = collectFoot(foot24.stats);
-    expect(foot25.stats.feet).toBe(25);
-    expect(foot25.chaseStarted).toBe(true);
-    const foot26 = collectFoot(foot25.stats);
-    expect(foot26.stats.feet).toBe(26);
-    expect(foot26.chaseStarted).toBe(false);
+  it("starts Bibi exactly on foot 15 and only once", () => {
+    const foot14 = collectFoot({ ...createRunStats(), feet: 13 });
+    expect(foot14.stats.feet).toBe(14);
+    expect(foot14.chaseStarted).toBe(false);
+    const foot15 = collectFoot(foot14.stats);
+    expect(foot15.stats.feet).toBe(15);
+    expect(foot15.chaseStarted).toBe(true);
+    const foot16 = collectFoot(foot15.stats);
+    expect(foot16.stats.feet).toBe(16);
+    expect(foot16.chaseStarted).toBe(false);
+  });
+
+  it("allows 12% of player height above the ceiling without relaxing the ground boundary", () => {
+    expect(isOutsidePlayArea(-12, 100, 500)).toBe(false);
+    expect(isOutsidePlayArea(-13, 100, 500)).toBe(true);
+    expect(isOutsidePlayArea(0, 100, 500)).toBe(false);
+    expect(isOutsidePlayArea(401, 100, 500)).toBe(true);
   });
 
   it("resets the chase threshold for a new run", () => {
@@ -37,6 +45,12 @@ describe("run mechanics", () => {
   it("detects Floater/player collisions with axis-aligned hitboxes", () => {
     expect(intersects({ x: 10, y: 10, width: 20, height: 20 }, { x: 25, y: 14, width: 20, height: 20 })).toBe(true);
     expect(intersects({ x: 10, y: 10, width: 20, height: 20 }, { x: 31, y: 10, width: 20, height: 20 })).toBe(false);
+  });
+
+  it("detects when hitboxes overlap or are within the required clearance", () => {
+    const foot = { x: 10, y: 10, width: 20, height: 20 };
+    expect(intersectsWithClearance(foot, { x: 44, y: 10, width: 20, height: 20 }, 15)).toBe(true);
+    expect(intersectsWithClearance(foot, { x: 46, y: 10, width: 20, height: 20 }, 15)).toBe(false);
   });
 
   it("ends the chase when Bibi's hitbox reaches the player", () => {
@@ -60,6 +74,23 @@ describe("run mechanics", () => {
     expect(savePersonalBest(storage, "best", 9.75)).toBe(9.75);
     expect(savePersonalBest(storage, "best", 7)).toBe(9.75);
     expect(readPersonalBest(storage, "best")).toBe(9.75);
+  });
+
+  it("tracks best feet independently from best time and initializes missing feet data", () => {
+    const values = new Map<string, string>([["best-time", "12.00"]]);
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    };
+    expect(readPersonalBest(storage, "best-feet")).toBe(0);
+    expect(readPersonalBest(storage, "best-time")).toBe(12);
+
+    expect(savePersonalBest(storage, "best-feet", 8)).toBe(8);
+    expect(savePersonalBest(storage, "best-time", 10)).toBe(12);
+    expect(savePersonalBest(storage, "best-feet", 9)).toBe(9);
+    expect(savePersonalBest(storage, "best-feet", 7)).toBe(9);
+    expect(readPersonalBest(storage, "best-time")).toBe(12);
+    expect(readPersonalBest(storage, "best-feet")).toBe(9);
   });
 
   it("handles blocked or malformed local storage", () => {

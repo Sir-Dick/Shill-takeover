@@ -4,7 +4,10 @@ import {
   BIBI_CHASE_FEET,
   collectFoot,
   createRunStats,
+  isOutsidePlayArea,
   intersects,
+  intersectsWithClearance,
+  readPersonalBest,
   savePersonalBest,
   type Rect,
   type RunStats,
@@ -12,6 +15,7 @@ import {
 } from "./mechanics";
 
 const BEST_KEY = "shill-takeover-best";
+const BEST_FEET_KEY = `${BEST_KEY}-feet`;
 const SETTINGS = {
   gravity: 1160,
   liftAcceleration: 2200,
@@ -28,14 +32,17 @@ const SETTINGS = {
   bibiGap: 14,
   bubbleSeconds: 1.8,
   maxDeltaSeconds: 0.04,
+  footSpawnAttempts: 8,
+  footSpawnClearance: 14,
 } as const;
 
-const BIBI_LINES = ["Those are my feet!", "Get back here!", "I'm coming for you!"] as const;
+const BIBI_LINES = ["You'll make a good lil Gayboy", "Those are my feet!", "You can't outrun the Nigger Jew", "I rule over everything including your ass"] as const;
 
 export interface HudData {
   time: number;
   best: number;
   feet: number;
+  bestFeet: number;
   bibiTriggered: boolean;
 }
 
@@ -96,6 +103,8 @@ export class ShillGame {
   private scroll = 0;
   private previousFrame: number | null = null;
   private best = 0;
+  private bestFeet = 0;
+  private finalRun: { time: number; feet: number } | null = null;
   private frameHandle = 0;
   private hiddenBeforePause: Screen = "running";
   private gameOverUnlockedAt = 0;
@@ -110,6 +119,7 @@ export class ShillGame {
     if (!context) throw new Error("Canvas 2D is unavailable in this browser.");
     this.context = context;
     this.best = this.readBest();
+    this.bestFeet = readPersonalBest(localStorage, BEST_FEET_KEY);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(canvas);
     this.resize();
@@ -127,6 +137,7 @@ export class ShillGame {
 
   startRun(): void {
     this.stats = createRunStats();
+    this.finalRun = null;
     this.floaters = [];
     this.feet = [];
     this.bibi = null;
@@ -241,7 +252,7 @@ export class ShillGame {
     }
 
     const player = this.playerRect();
-    if (this.playerY < 0 || this.playerY + this.playerHeight > this.groundY) {
+    if (isOutsidePlayArea(this.playerY, this.playerHeight, this.groundY)) {
       this.finishRun();
       return;
     }
@@ -318,7 +329,9 @@ export class ShillGame {
   private finishRun(): void {
     if (this.screen !== "running") return;
     this.holding = false;
+    this.finalRun = { time: this.stats.elapsedSeconds, feet: this.stats.feet };
     this.best = savePersonalBest(localStorage, BEST_KEY, this.stats.elapsedSeconds);
+    this.bestFeet = savePersonalBest(localStorage, BEST_FEET_KEY, this.stats.feet);
     this.screen = "game-over";
     this.gameOverUnlockedAt = performance.now() + 450;
     this.notifyHud();
@@ -344,13 +357,23 @@ export class ShillGame {
     const size = Math.max(30, Math.min(42, this.height * 0.065));
     const minimumY = this.height * 0.2;
     const maximumY = Math.max(minimumY, this.groundY - size - 15);
-    this.feet.push({
-      x: this.width + 20,
-      y: minimumY + Math.random() * (maximumY - minimumY),
-      size,
-      phase: Math.random() * 4,
-      collected: false,
-    });
+    for (let attempt = 0; attempt < SETTINGS.footSpawnAttempts; attempt += 1) {
+      const foot: FootPickup = {
+        x: this.width + 20,
+        y: minimumY + Math.random() * (maximumY - minimumY),
+        size,
+        phase: Math.random() * 4,
+        collected: false,
+      };
+      const footRect = this.footRect(foot);
+      const overlapsFloater = this.floaters.some((floater) =>
+        intersectsWithClearance(footRect, this.floaterRect(floater), SETTINGS.footSpawnClearance),
+      );
+      if (!overlapsFloater) {
+        this.feet.push(foot);
+        return;
+      }
+    }
   }
 
   private playerRect(): Rect {
@@ -367,7 +390,9 @@ export class ShillGame {
   }
 
   private footRect(foot: FootPickup): Rect {
-    return { x: foot.x - foot.size * 0.38, y: foot.y - foot.size * 0.35, width: foot.size * 0.76, height: foot.size * 0.72 };
+    const width = foot.size * 0.76 * 1.35;
+    const height = foot.size * 0.72 * 1.35;
+    return { x: foot.x - width / 2, y: foot.y + foot.size * 0.01 - height / 2, width, height };
   }
 
   private imageAspect(image: CanvasImageSource | null, fallback: number): number {
@@ -379,10 +404,12 @@ export class ShillGame {
   }
 
   private notifyHud(_changed = false): void {
+    const run = this.finalRun ?? { time: this.stats.elapsedSeconds, feet: this.stats.feet };
     this.onHud({
-      time: this.stats.elapsedSeconds,
+      time: run.time,
       best: this.best,
-      feet: this.stats.feet,
+      feet: run.feet,
+      bestFeet: this.bestFeet,
       bibiTriggered: this.stats.bibiTriggered,
     }, this.chaseBannerTimer > 0);
   }
@@ -484,7 +511,18 @@ export class ShillGame {
 
   private drawPlayer(): void {
     if (this.screen === "running" && Math.floor(this.worldTime * 13) % 2 === 0 && this.best > 0 && this.playerY < 0) return;
-    drawPortrait(this.context, this.assets.player, this.playerX, this.playerY, this.playerWidth, this.playerHeight, "playerFallback");
+    const visualScale = 0.88;
+    const visualWidth = this.playerWidth * visualScale;
+    const visualHeight = this.playerHeight * visualScale;
+    drawPortrait(
+      this.context,
+      this.assets.player,
+      this.playerX + (this.playerWidth - visualWidth) / 2,
+      this.playerY + (this.playerHeight - visualHeight) / 2,
+      visualWidth,
+      visualHeight,
+      "playerFallback",
+    );
   }
 
   private drawGroundLine(): void {

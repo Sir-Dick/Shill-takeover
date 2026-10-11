@@ -1,4 +1,4 @@
-export const BIBI_CHASE_FEET = 25;
+export const BIBI_CHASE_FEET = 15;
 
 export type Screen = "start" | "running" | "paused" | "game-over" | "results";
 
@@ -40,6 +40,20 @@ export function collectFoot(stats: RunStats): { stats: RunStats; chaseStarted: b
 
 export function intersects(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+export function isOutsidePlayArea(playerY: number, playerHeight: number, groundY: number): boolean {
+  return playerY < -playerHeight * 0.12 || playerY + playerHeight > groundY;
+}
+
+export function intersectsWithClearance(a: Rect, b: Rect, clearance: number): boolean {
+  const expanded = {
+    x: a.x - clearance,
+    y: a.y - clearance,
+    width: a.width + clearance * 2,
+    height: a.height + clearance * 2,
+  };
+  return intersects(expanded, b);
 }
 
 export function bibiCaught(bibi: Rect, player: Rect): boolean {
