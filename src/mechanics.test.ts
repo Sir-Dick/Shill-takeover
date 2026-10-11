@@ -8,6 +8,7 @@ import {
   intersects,
   intersectsWithClearance,
   nextGameOverScreen,
+  nextHomeScreen,
   readPersonalBest,
   savePersonalBest,
 } from "./mechanics";
@@ -63,6 +64,13 @@ describe("run mechanics", () => {
     expect(nextGameOverScreen("game-over")).toBe("results");
     expect(nextGameOverScreen("results")).toBe("results");
     expect(nextGameOverScreen("running")).toBe("running");
+  });
+
+  it("returns from results to home without changing other screens", () => {
+    expect(nextHomeScreen("results")).toBe("start");
+    expect(nextHomeScreen("game-over")).toBe("start");
+    expect(nextHomeScreen("running")).toBe("running");
+    expect(nextHomeScreen("paused")).toBe("paused");
   });
 
   it("saves the best time without lowering an existing record", () => {

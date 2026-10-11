@@ -1,4 +1,5 @@
 import type { GameAssets } from "./assets";
+import { submitNewPersonalBest } from "./firebase";
 import {
   advanceSurvivalTime,
   BIBI_CHASE_FEET,
@@ -7,6 +8,7 @@ import {
   isOutsidePlayArea,
   intersects,
   intersectsWithClearance,
+  nextHomeScreen,
   readPersonalBest,
   savePersonalBest,
   type Rect,
@@ -173,6 +175,15 @@ export class ShillGame {
     this.notifyHud();
   }
 
+  returnHome(): void {
+    const nextScreen = nextHomeScreen(this.screen);
+    if (nextScreen === this.screen) return;
+    this.holding = false;
+    this.screen = nextScreen;
+    this.onScreen(this.screen);
+    this.notifyHud();
+  }
+
   pause(): void {
     if (this.screen !== "running") return;
     this.hiddenBeforePause = this.screen;
@@ -329,9 +340,16 @@ export class ShillGame {
   private finishRun(): void {
     if (this.screen !== "running") return;
     this.holding = false;
-    this.finalRun = { time: this.stats.elapsedSeconds, feet: this.stats.feet };
+    const finalRun = { time: this.stats.elapsedSeconds, feet: this.stats.feet };
+    const previousBest = this.best;
+    const previousBestFeet = this.bestFeet;
+    this.finalRun = finalRun;
     this.best = savePersonalBest(localStorage, BEST_KEY, this.stats.elapsedSeconds);
     this.bestFeet = savePersonalBest(localStorage, BEST_FEET_KEY, this.stats.feet);
+    void submitNewPersonalBest({
+      ...(finalRun.feet > previousBestFeet ? { bestFeet: finalRun.feet } : {}),
+      ...(finalRun.time > previousBest ? { bestSurvivalMs: Math.round(finalRun.time * 1000) } : {}),
+    });
     this.screen = "game-over";
     this.gameOverUnlockedAt = performance.now() + 450;
     this.notifyHud();

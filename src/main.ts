@@ -1,19 +1,38 @@
 import "./styles.css";
 import { assetFilesForUi, assetUrl, loadGameAssets } from "./assets";
+import { connectPlayerProfile, fetchLeaderboard, retryPendingUploads } from "./firebase";
 import { ShillGame, type HudData } from "./game";
+import { buildLeaderboardRows, emptyLeaderboardMessage, type LeaderboardCategory } from "./leaderboard-model";
 import { nextGameOverScreen, type Screen } from "./mechanics";
+import { loadPlayerProfile, normalizeNickname, savePlayerProfile, type PlayerProfile } from "./profile";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas")!;
 const startScreen = document.querySelector<HTMLElement>("#start-screen")!;
 const pauseScreen = document.querySelector<HTMLElement>("#pause-screen")!;
 const gameOverScreen = document.querySelector<HTMLElement>("#game-over-screen")!;
 const resultsScreen = document.querySelector<HTMLElement>("#results-screen")!;
+const nicknameScreen = document.querySelector<HTMLElement>("#nickname-screen")!;
+const leaderboardScreen = document.querySelector<HTMLElement>("#leaderboard-screen")!;
 const chaseWarning = document.querySelector<HTMLElement>("#chase-warning")!;
 const startButton = document.querySelector<HTMLButtonElement>("#start-button")!;
 const resumeButton = document.querySelector<HTMLButtonElement>("#resume-button")!;
 const playAgainButton = document.querySelector<HTMLButtonElement>("#play-again-button")!;
+const homeButton = document.querySelector<HTMLButtonElement>("#home-button")!;
 const muteButton = document.querySelector<HTMLButtonElement>("#mute-button")!;
-const gameScreens = [startScreen, pauseScreen, gameOverScreen, resultsScreen];
+const changeNicknameButton = document.querySelector<HTMLButtonElement>("#change-nickname-button")!;
+const leaderboardButton = document.querySelector<HTMLButtonElement>("#leaderboard-button")!;
+const nicknameForm = document.querySelector<HTMLFormElement>("#nickname-form")!;
+const nicknameInput = document.querySelector<HTMLInputElement>("#nickname-input")!;
+const nicknameError = document.querySelector<HTMLElement>("#nickname-error")!;
+const cancelNicknameButton = document.querySelector<HTMLButtonElement>("#cancel-nickname-button")!;
+const currentNickname = document.querySelector<HTMLElement>("#current-nickname")!;
+const leaderboardList = document.querySelector<HTMLOListElement>("#leaderboard-list")!;
+const leaderboardStatus = document.querySelector<HTMLElement>("#leaderboard-status")!;
+const leaderboardRetryButton = document.querySelector<HTMLButtonElement>("#leaderboard-retry-button")!;
+const leaderboardBackButton = document.querySelector<HTMLButtonElement>("#leaderboard-back-button")!;
+const feetLeaderboardButton = document.querySelector<HTMLButtonElement>("#leaderboard-feet-button")!;
+const survivalLeaderboardButton = document.querySelector<HTMLButtonElement>("#leaderboard-survival-button")!;
+const gameScreens = [startScreen, pauseScreen, gameOverScreen, resultsScreen, nicknameScreen, leaderboardScreen];
 
 document.querySelector<HTMLImageElement>("#start-art")!.src = assetUrl(assetFilesForUi.player);
 document.querySelector<HTMLImageElement>("#game-over-art")!.src = assetUrl(assetFilesForUi.gameOver);
@@ -25,6 +44,18 @@ let liftKeyDown = false;
 let gameOverTapLockUntil = 0;
 let soundEnabled = true;
 let audioContext: AudioContext | null = null;
+let playerProfile: PlayerProfile | null = loadPlayerProfile(localStorage);
+let leaderboardCategory: LeaderboardCategory = "feet";
+let leaderboardRequest = 0;
+
+function updateProfileDisplay(profile: PlayerProfile | null): void {
+  playerProfile = profile;
+  currentNickname.textContent = profile?.nickname ?? "";
+}
+
+updateProfileDisplay(playerProfile);
+nicknameScreen.hidden = Boolean(playerProfile);
+startScreen.hidden = !playerProfile;
 
 function fitScreenCards(): void {
   for (const screen of gameScreens) {
@@ -46,6 +77,8 @@ function showScreen(screen: Screen, lockedUntil = 0): void {
   pauseScreen.hidden = screen !== "paused";
   gameOverScreen.hidden = screen !== "game-over";
   resultsScreen.hidden = screen !== "results";
+  nicknameScreen.hidden = true;
+  leaderboardScreen.hidden = true;
   fitScreenCards();
   canvas.setAttribute("aria-label", screen === "running"
     ? "Game in progress. Hold or tap to float upward, release to drift down."
@@ -88,6 +121,107 @@ function playUiTone(frequency: number, duration: number): void {
   oscillator.stop(now + duration + 0.01);
 }
 
+function openNicknameSetup(): void {
+  nicknameError.textContent = "";
+  nicknameInput.value = playerProfile?.nickname ?? "";
+  cancelNicknameButton.hidden = !playerProfile;
+  nicknameScreen.hidden = false;
+  leaderboardScreen.hidden = true;
+  startScreen.hidden = true;
+  if (playerProfile) nicknameInput.focus();
+}
+
+nicknameForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const nickname = normalizeNickname(nicknameInput.value);
+  if (!nickname) {
+    nicknameError.textContent = "Use 2–16 letters, numbers, spaces, underscores, or hyphens.";
+    return;
+  }
+  const profile = savePlayerProfile(localStorage, nickname, playerProfile);
+  if (!profile) {
+    nicknameError.textContent = "This browser could not save your nickname. Check its storage settings and try again.";
+    return;
+  }
+  updateProfileDisplay(profile);
+  nicknameScreen.hidden = true;
+  startScreen.hidden = false;
+  void connectPlayerProfile(profile).then((result) => {
+    const connected = result.profile;
+    if (connected && playerProfile?.localId === connected.localId) updateProfileDisplay(connected);
+  });
+});
+
+changeNicknameButton.addEventListener("click", openNicknameSetup);
+cancelNicknameButton.addEventListener("click", () => {
+  nicknameScreen.hidden = true;
+  startScreen.hidden = false;
+});
+
+async function loadLeaderboard(): Promise<void> {
+  const request = ++leaderboardRequest;
+  leaderboardList.replaceChildren();
+  leaderboardStatus.hidden = false;
+  leaderboardRetryButton.hidden = true;
+  leaderboardStatus.textContent = "Loading leaderboard…";
+  feetLeaderboardButton.setAttribute("aria-pressed", String(leaderboardCategory === "feet"));
+  survivalLeaderboardButton.setAttribute("aria-pressed", String(leaderboardCategory === "survival"));
+  if (!navigator.onLine) {
+    leaderboardStatus.textContent = "You are offline. Your local scores are safe; reconnect to load the leaderboard.";
+    leaderboardRetryButton.hidden = false;
+    return;
+  }
+  try {
+    const entries = await fetchLeaderboard(leaderboardCategory);
+    if (request !== leaderboardRequest) return;
+    const rows = buildLeaderboardRows(entries, leaderboardCategory);
+    if (!rows.length) {
+      leaderboardStatus.textContent = emptyLeaderboardMessage(leaderboardCategory);
+      return;
+    }
+    leaderboardStatus.hidden = true;
+    for (const row of rows) {
+      const item = document.createElement("li");
+      const rank = document.createElement("span");
+      const nickname = document.createElement("span");
+      const score = document.createElement("strong");
+      rank.textContent = String(row.rank);
+      nickname.textContent = row.nickname;
+      score.textContent = row.score;
+      item.append(rank, nickname, score);
+      leaderboardList.append(item);
+    }
+  } catch {
+    if (request !== leaderboardRequest) return;
+    leaderboardStatus.textContent = navigator.onLine
+      ? "The leaderboard could not be loaded. Try again."
+      : "You are offline. Your local scores are safe; reconnect to load the leaderboard.";
+    leaderboardRetryButton.hidden = false;
+  }
+}
+
+function openLeaderboard(): void {
+  startScreen.hidden = true;
+  nicknameScreen.hidden = true;
+  leaderboardScreen.hidden = false;
+  void loadLeaderboard();
+}
+
+leaderboardButton.addEventListener("click", openLeaderboard);
+leaderboardBackButton.addEventListener("click", () => {
+  leaderboardScreen.hidden = true;
+  startScreen.hidden = false;
+});
+feetLeaderboardButton.addEventListener("click", () => {
+  leaderboardCategory = "feet";
+  void loadLeaderboard();
+});
+survivalLeaderboardButton.addEventListener("click", () => {
+  leaderboardCategory = "survival";
+  void loadLeaderboard();
+});
+leaderboardRetryButton.addEventListener("click", () => void loadLeaderboard());
+
 const assetsPromise = loadGameAssets();
 void assetsPromise.then((assets) => {
   game = new ShillGame(canvas, assets, showScreen, updateHud);
@@ -101,6 +235,7 @@ function startNewRun(): void {
 startButton.addEventListener("click", startNewRun);
 resumeButton.addEventListener("click", () => game?.resume());
 playAgainButton.addEventListener("click", startNewRun);
+homeButton.addEventListener("click", () => game?.returnHome());
 gameOverScreen.addEventListener("click", () => {
   if (performance.now() < gameOverTapLockUntil) return;
   if (nextGameOverScreen(currentScreen) === "results") game?.continueToResults();
@@ -126,6 +261,7 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (currentScreen === "results") {
+    if (event.target === homeButton) return;
     event.preventDefault();
     startNewRun();
     return;
@@ -164,6 +300,16 @@ window.addEventListener("pagehide", () => {
 void assetsPromise.then((assets) => {
   const missing = Object.entries(assets).filter(([, image]) => image === null).map(([name]) => name);
   if (missing.length) console.warn(`Some artwork did not load: ${missing.join(", ")}`);
+});
+
+void connectPlayerProfile(playerProfile).then((result) => {
+  const profile = result.profile;
+  if (profile && (!playerProfile || playerProfile.localId === profile.localId)) updateProfileDisplay(profile);
+});
+
+window.addEventListener("online", () => {
+  void retryPendingUploads(playerProfile);
+  if (!leaderboardScreen.hidden) void loadLeaderboard();
 });
 
 for (const screen of gameScreens) {

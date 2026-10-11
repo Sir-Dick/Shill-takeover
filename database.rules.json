@@ -1,0 +1,29 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "players": {
+      ".read": true,
+      ".indexOn": ["bestFeet", "bestSurvivalMs"],
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['nickname', 'bestFeet', 'bestSurvivalMs', 'updatedAt'])",
+        "nickname": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 16 && newData.val().matches(/^[A-Za-z0-9 _-]+$/)"
+        },
+        "bestFeet": {
+          ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 1000000 && (!data.exists() || newData.val() >= data.val())"
+        },
+        "bestSurvivalMs": {
+          ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 604800000 && (!data.exists() || newData.val() >= data.val())"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= now + 60000"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

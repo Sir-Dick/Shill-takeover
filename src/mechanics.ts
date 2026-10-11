@@ -64,6 +64,10 @@ export function nextGameOverScreen(screen: Screen): Screen {
   return screen === "game-over" ? "results" : screen;
 }
 
+export function nextHomeScreen(screen: Screen): Screen {
+  return screen === "game-over" || screen === "results" ? "start" : screen;
+}
+
 export function bestTime(previousBest: number, finalTime: number): number {
   return Math.max(previousBest, Number.isFinite(finalTime) ? Math.max(0, finalTime) : 0);
 }

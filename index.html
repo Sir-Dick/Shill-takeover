@@ -31,9 +31,50 @@
               <p class="intro">Float through the storefront skies. Dodge Nigga-Jews. Collect feet. Make it past 25 and Bibi joins the chase.</p>
               <div class="controls-hint"><span class="tap-icon" aria-hidden="true">↕</span><span><strong>HOLD TO RISE</strong><br />Release to drift down</span></div>
               <button class="primary-button" id="start-button" type="button">TAP TO PLAY</button>
+              <div class="player-tools">
+                <p class="player-identity">Playing as <strong id="current-nickname"></strong></p>
+                <div class="player-actions">
+                  <button class="secondary-button" id="change-nickname-button" type="button">Change nickname</button>
+                  <button class="secondary-button" id="leaderboard-button" type="button">Leaderboard</button>
+                </div>
+              </div>
               <p class="keyboard-hint">Touch · mouse · Space · ↑</p>
             </div>
             <figure class="art-frame hero-art"><img id="start-art" alt="The Shill TakeOver main character" /></figure>
+          </div>
+        </section>
+
+        <section class="screen nickname-screen" id="nickname-screen" aria-labelledby="nickname-title" hidden>
+          <div class="message-card nickname-card">
+            <p class="eyebrow">Player setup</p>
+            <h2 id="nickname-title">Choose a nickname</h2>
+            <form id="nickname-form" novalidate>
+              <label for="nickname-input">Nickname</label>
+              <input id="nickname-input" name="nickname" type="text" minlength="2" maxlength="16" autocomplete="nickname" required />
+              <p class="form-error" id="nickname-error" role="alert" aria-live="polite"></p>
+              <p class="identity-note">Your nickname and player identity are stored in this browser. Clearing browser data or switching browsers or devices may create a new identity.</p>
+              <div class="form-actions">
+                <button class="primary-button" type="submit">SAVE NICKNAME</button>
+                <button class="secondary-button" id="cancel-nickname-button" type="button" hidden>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="screen leaderboard-screen" id="leaderboard-screen" aria-labelledby="leaderboard-title" hidden>
+          <div class="message-card leaderboard-card">
+            <p class="eyebrow">Global scores</p>
+            <h2 id="leaderboard-title">Leaderboard</h2>
+            <div class="leaderboard-tabs" role="group" aria-label="Leaderboard category">
+              <button class="category-button" id="leaderboard-feet-button" type="button" aria-pressed="true">Most Feet</button>
+              <button class="category-button" id="leaderboard-survival-button" type="button" aria-pressed="false">Longest Survival</button>
+            </div>
+            <ol class="leaderboard-list" id="leaderboard-list" aria-label="Top 10 players"></ol>
+            <p class="leaderboard-status" id="leaderboard-status" role="status" aria-live="polite">Loading leaderboard…</p>
+            <div class="leaderboard-actions">
+              <button class="secondary-button" id="leaderboard-retry-button" type="button" hidden>Retry</button>
+              <button class="primary-button" id="leaderboard-back-button" type="button">BACK TO GAME</button>
+            </div>
           </div>
         </section>
 
@@ -62,7 +103,10 @@
                 <div><dt>Feet collected</dt><dd id="final-feet">0</dd></div>
                 <div><dt>Best feet</dt><dd id="final-best-feet">0</dd></div>
               </dl>
-              <button class="primary-button" id="play-again-button" type="button">PLAY AGAIN</button>
+              <div class="result-actions">
+                <button class="primary-button" id="play-again-button" type="button">PLAY AGAIN</button>
+                <button class="secondary-button home-button" id="home-button" type="button">Home</button>
+              </div>
               <p class="local-note">Personal best is saved on this device only.</p>
             </div>
           </div>
