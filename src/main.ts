@@ -1,13 +1,13 @@
 import "./styles.css";
 import { assetFilesForUi, assetUrl, loadGameAssets } from "./assets";
-import { connectPlayerProfile, fetchLeaderboard, retryPendingUploads } from "./firebase";
+import { connectPlayerProfile, fetchLeaderboard, resetPlayerAuthentication, retryPendingUploads } from "./firebase";
 import { ShillGame, type HudData } from "./game";
 import { buildLeaderboardRows, emptyLeaderboardMessage, type LeaderboardCategory } from "./leaderboard-model";
 import { nextGameOverScreen, type Screen } from "./mechanics";
 import { loadPlayerProfile, normalizeNickname, savePlayerProfile, type PlayerProfile } from "./profile";
-import { migrateLocalScoresForFreshLeaderboard, queuePendingUpload } from "./score-store";
+import { queuePendingUpload, resetLocalGameData } from "./score-store";
 
-migrateLocalScoresForFreshLeaderboard(localStorage);
+if (resetLocalGameData(localStorage)) resetPlayerAuthentication();
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas")!;
 const startScreen = document.querySelector<HTMLElement>("#start-screen")!;

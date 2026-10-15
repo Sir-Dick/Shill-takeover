@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { browserLocalPersistence, getAuth, setPersistence, signInAnonymously } from "firebase/auth";
+import { browserLocalPersistence, getAuth, setPersistence, signInAnonymously, signOut } from "firebase/auth";
 import { get, getDatabase, limitToLast, orderByChild, query, ref, runTransaction } from "firebase/database";
 import { PlayerCloudSync, type CloudSyncResult } from "./cloud-sync";
 import { queuePendingUpload, type PendingUpload, type ScoreImprovements } from "./score-store";
@@ -24,9 +24,16 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app, firebaseConfig.databaseURL);
 let authentication: Promise<string> | null = null;
+let authenticationReset: Promise<void> = Promise.resolve();
+
+export function resetPlayerAuthentication(): void {
+  authentication = null;
+  authenticationReset = signOut(auth).catch(() => undefined);
+}
 
 export function authenticatePlayer(): Promise<string> {
   authentication ??= (async () => {
+    await authenticationReset;
     await setPersistence(auth, browserLocalPersistence);
     const user = auth.currentUser ?? (await signInAnonymously(auth)).user;
     return user.uid;

@@ -24,9 +24,15 @@ const SETTINGS = {
   tapImpulse: 190,
   maxRiseSpeed: 420,
   obstacleBaseSpeed: 205,
-  obstacleSpeedGain: 4.4,
+  obstacleSpeedGain: 2.42,
+  obstacleSpeedCap: 401,
   obstacleGapStart: 1.72,
   obstacleGapMin: 1.12,
+  obstacleGapGrowthRate: 0.0044,
+  brokedadIntervalSeconds: 45,
+  starrDurationSeconds: 15,
+  backgroundBottomCrop: 0.06,
+  GROUND_Y: 0.88,
   playerYFraction: 0.43,
   hitboxInset: 0.23,
   bibiCatchUpRate: 2.6,
@@ -55,6 +61,7 @@ interface Floater {
   height: number;
   wobble: number;
   passed: boolean;
+  brokedad: boolean;
 }
 
 interface FootPickup {
@@ -99,6 +106,8 @@ export class ShillGame {
   private bubble: Bubble | null = null;
   private lastLine = -1;
   private obstacleTimer = 1.2;
+  private nextBrokedadAt = SETTINGS.brokedadIntervalSeconds;
+  private starrRemaining = 0;
   private footTimer = 1.15;
   private chaseBannerTimer = 0;
   private worldTime = 0;
@@ -144,6 +153,8 @@ export class ShillGame {
     this.feet = [];
     this.bibi = null;
     this.bubble = null;
+    this.nextBrokedadAt = SETTINGS.brokedadIntervalSeconds;
+    this.starrRemaining = 0;
     this.velocityY = 0;
     this.holding = false;
     this.worldTime = 0;
@@ -220,7 +231,7 @@ export class ShillGame {
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
     this.context.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.groundY = this.height * 0.88;
+    this.groundY = this.height * SETTINGS.GROUND_Y;
     this.playerHeight = Math.max(64, Math.min(138, this.height * 0.19));
     this.playerWidth = this.playerHeight * 0.74;
     this.playerX = this.width * 0.24;
@@ -243,7 +254,8 @@ export class ShillGame {
     const beforeFeet = this.stats.feet;
     this.stats.elapsedSeconds = advanceSurvivalTime(this.stats.elapsedSeconds, elapsedDelta, true);
     this.worldTime += delta;
-    const speed = SETTINGS.obstacleBaseSpeed + this.stats.elapsedSeconds * SETTINGS.obstacleSpeedGain;
+    this.starrRemaining = Math.max(0, this.starrRemaining - elapsedDelta);
+    const speed = Math.min(SETTINGS.obstacleSpeedCap, SETTINGS.obstacleBaseSpeed + this.stats.elapsedSeconds * SETTINGS.obstacleSpeedGain);
     this.scroll = (this.scroll + speed * delta) % 1800;
     this.chaseBannerTimer = Math.max(0, this.chaseBannerTimer - delta);
 
@@ -253,8 +265,8 @@ export class ShillGame {
 
     this.obstacleTimer -= delta;
     if (this.obstacleTimer <= 0) {
-      this.spawnFloater();
-      this.obstacleTimer = Math.max(SETTINGS.obstacleGapMin, SETTINGS.obstacleGapStart - this.stats.elapsedSeconds * 0.008) + Math.random() * 0.34;
+      if (this.starrRemaining <= 0) this.spawnFloater();
+      this.obstacleTimer = Math.max(SETTINGS.obstacleGapMin, SETTINGS.obstacleGapStart - this.stats.elapsedSeconds * SETTINGS.obstacleGapGrowthRate) + Math.random() * 0.34;
     }
     this.footTimer -= delta;
     if (this.footTimer <= 0) {
@@ -275,8 +287,15 @@ export class ShillGame {
       const collision = this.floaterRect(floater);
       floaterRect.push(collision);
       if (intersects(player, collision)) {
-        this.finishRun();
-        return;
+        if (floater.brokedad) {
+          this.starrRemaining = SETTINGS.starrDurationSeconds;
+          this.floaters = [];
+          break;
+        }
+        if (this.starrRemaining <= 0) {
+          this.finishRun();
+          return;
+        }
       }
       if (!floater.passed && floater.x + floater.width < this.playerX) {
         floater.passed = true;
@@ -342,6 +361,7 @@ export class ShillGame {
     this.holding = false;
     const finalRun = { time: this.stats.elapsedSeconds, feet: this.stats.feet };
     this.finalRun = finalRun;
+    this.starrRemaining = 0;
     const result = recordRun(localStorage, finalRun.time, finalRun.feet);
     this.best = result.bestTimeSeconds;
     this.bestFeet = result.bestFeet;
@@ -354,7 +374,10 @@ export class ShillGame {
 
   private spawnFloater(): void {
     const height = Math.max(50, Math.min(104, this.height * 0.17));
-    const width = height * this.imageAspect(this.assets.floater, 0.66);
+    const brokedad = this.stats.elapsedSeconds >= this.nextBrokedadAt;
+    if (brokedad) this.nextBrokedadAt += SETTINGS.brokedadIntervalSeconds;
+    const image = brokedad ? this.assets.brokedad : this.assets.floater;
+    const width = height * this.imageAspect(image, 0.66);
     const minimumY = 24;
     const maximumY = Math.max(minimumY, this.groundY - height - 20);
     this.floaters.push({
@@ -364,6 +387,7 @@ export class ShillGame {
       height,
       wobble: Math.random() * Math.PI * 2,
       passed: false,
+      brokedad,
     });
   }
 
@@ -442,7 +466,7 @@ export class ShillGame {
     const ctx = this.context;
     const background = this.assets.background;
     if (background) {
-      drawCover(ctx, background, -6, 0, this.width + 12, this.height, { top: 0.1, right: 0.12 });
+      drawCover(ctx, background, -6, 0, this.width + 12, this.height, { top: 0.1, right: 0.12, bottom: SETTINGS.backgroundBottomCrop });
       ctx.fillStyle = "rgba(28, 45, 56, 0.23)";
       ctx.fillRect(0, 0, this.width, this.height);
     } else {
@@ -468,7 +492,8 @@ export class ShillGame {
   private drawFloaters(): void {
     for (const floater of this.floaters) {
       const bob = Math.sin(this.worldTime * 2 + floater.wobble) * 6;
-      drawPortrait(this.context, this.assets.floater, floater.x, floater.y + bob, floater.width, floater.height, "floaterFallback");
+      const image = floater.brokedad ? this.assets.brokedad : this.assets.floater;
+      drawPortrait(this.context, image, floater.x, floater.y + bob, floater.width, floater.height, "floaterFallback");
     }
   }
 
@@ -530,7 +555,7 @@ export class ShillGame {
     const visualHeight = this.playerHeight * visualScale;
     drawPortrait(
       this.context,
-      this.assets.player,
+      this.starrRemaining > 0 ? this.assets.starr : this.assets.player,
       this.playerX + (this.playerWidth - visualWidth) / 2,
       this.playerY + (this.playerHeight - visualHeight) / 2,
       visualWidth,
@@ -542,17 +567,14 @@ export class ShillGame {
   private drawGroundLine(): void {
     const ctx = this.context;
     const y = this.groundY;
-    ctx.fillStyle = "rgba(24, 33, 42, 0.55)";
+    ctx.fillStyle = "#26343a";
     ctx.fillRect(0, y, this.width, this.height - y);
     ctx.strokeStyle = "#f6d274";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([24, 22]);
-    ctx.lineDashOffset = -this.scroll % 46;
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(0, y + (this.height - y) * 0.52);
-    ctx.lineTo(this.width, y + (this.height - y) * 0.52);
+    ctx.moveTo(0, y);
+    ctx.lineTo(this.width, y);
     ctx.stroke();
-    ctx.setLineDash([]);
   }
 }
 
@@ -563,7 +585,7 @@ function drawCover(
   y: number,
   width: number,
   height: number,
-  crop: { top: number; right: number },
+  crop: { top: number; right: number; bottom: number },
 ): void {
   const source = image as HTMLImageElement | HTMLCanvasElement;
   const imageWidth = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
@@ -572,7 +594,7 @@ function drawCover(
   const sourceX = 0;
   const sourceY = imageHeight * crop.top;
   const sourceWidth = imageWidth * (1 - crop.right);
-  const sourceHeight = imageHeight - sourceY;
+  const sourceHeight = imageHeight * (1 - crop.bottom) - sourceY;
   const scale = Math.max(width / sourceWidth, height / sourceHeight);
   const drawWidth = sourceWidth * scale;
   const drawHeight = sourceHeight * scale;

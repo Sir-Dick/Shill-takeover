@@ -1,4 +1,5 @@
 export const PLAYER_PROFILE_KEY = "shill-takeover-player-profile";
+export const SYNCED_PROFILE_KEY = "shill-takeover-synced-profile";
 
 export interface PlayerProfile {
   localId: string;

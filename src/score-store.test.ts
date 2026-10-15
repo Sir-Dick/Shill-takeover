@@ -4,14 +4,16 @@ import {
   BEST_FEET_KEY,
   BEST_TIME_KEY,
   clearPendingUpload,
-  LEADERBOARD_RESET_VERSION_KEY,
-  migrateLocalScoresForFreshLeaderboard,
+  DATA_VERSION,
+  DATA_VERSION_KEY,
   PENDING_UPLOAD_KEY,
   queuePendingUpload,
   readLocalScores,
   readPendingUpload,
   recordRun,
+  resetLocalGameData,
 } from "./score-store";
+import { PLAYER_PROFILE_KEY, SYNCED_PROFILE_KEY } from "./profile";
 
 function createStorage(): Storage {
   const values = new Map<string, string>();
@@ -59,20 +61,24 @@ describe("local score storage", () => {
     expect(storage.getItem(PENDING_UPLOAD_KEY)).not.toBeNull();
   });
 
-  it("resets local records and stale score uploads once while preserving nickname", () => {
+  it("clears prior game data once when the storage version changes", () => {
     const storage = createStorage();
     storage.setItem(BEST_TIME_KEY, "45.25");
     storage.setItem(BEST_FEET_KEY, "31");
     storage.setItem(PENDING_UPLOAD_KEY, JSON.stringify({ nickname: "Pilot", bestFeet: 31, bestSurvivalMs: 45250 }));
+    storage.setItem(PLAYER_PROFILE_KEY, JSON.stringify({ localId: "old-id", nickname: "Pilot" }));
+    storage.setItem(SYNCED_PROFILE_KEY, JSON.stringify({ uid: "old-uid", nickname: "Pilot" }));
 
-    expect(migrateLocalScoresForFreshLeaderboard(storage)).toBe(true);
+    expect(resetLocalGameData(storage)).toBe(true);
     expect(readLocalScores(storage)).toEqual({ bestTimeSeconds: 0, bestFeet: 0 });
-    expect(readPendingUpload(storage)).toEqual({ nickname: "Pilot" });
-    expect(storage.getItem(LEADERBOARD_RESET_VERSION_KEY)).toBe("1");
+    expect(readPendingUpload(storage)).toEqual({});
+    expect(storage.getItem(PLAYER_PROFILE_KEY)).toBeNull();
+    expect(storage.getItem(SYNCED_PROFILE_KEY)).toBeNull();
+    expect(storage.getItem(DATA_VERSION_KEY)).toBe(String(DATA_VERSION));
 
     expect(recordRun(storage, 6.5, 4).improvements).toEqual({ bestSurvivalMs: 6500, bestFeet: 4 });
-    expect(migrateLocalScoresForFreshLeaderboard(storage)).toBe(false);
+    expect(resetLocalGameData(storage)).toBe(false);
     expect(readLocalScores(storage)).toEqual({ bestTimeSeconds: 6.5, bestFeet: 4 });
-    expect(readPendingUpload(storage)).toEqual({ nickname: "Pilot", bestFeet: 4, bestSurvivalMs: 6500 });
+    expect(readPendingUpload(storage)).toEqual({ bestFeet: 4, bestSurvivalMs: 6500 });
   });
 });

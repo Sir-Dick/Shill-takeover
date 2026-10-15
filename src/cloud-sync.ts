@@ -1,7 +1,5 @@
 import { clearPendingUpload, queuePendingUpload, readPendingUpload, type PendingUpload, type ScoreStorage } from "./score-store";
-import { saveFirebaseUid, type PlayerProfile } from "./profile";
-
-const SYNCED_PROFILE_KEY = "shill-takeover-synced-profile";
+import { saveFirebaseUid, SYNCED_PROFILE_KEY, type PlayerProfile } from "./profile";
 
 export interface CloudGateway {
   authenticate(): Promise<string>;

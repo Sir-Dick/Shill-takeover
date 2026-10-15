@@ -1,12 +1,14 @@
-export type AssetName = "background" | "player" | "floater" | "bibi" | "gameOver" | "fellas" | "foot";
+export type AssetName = "background" | "player" | "starr" | "floater" | "brokedad" | "bibi" | "gameOver" | "fellas" | "foot";
 
 const assetFiles: Record<AssetName, string> = {
   background: "background/IMG_4390.JPG",
   bibi: "bibi/IMG_4406.jpg",
-  floater: "Floater/IMG_4381.jpg",
+  floater: "floater/IMG_4381-original.jpg",
+  brokedad: "floater/brokedad.jpeg",
   gameOver: "game-over/IMG_4379.jpg",
   fellas: "gameover-fellas/IMG_4408.jpg",
   player: "main-character/IMG_4410.jpg",
+  starr: "main character/starr.PNG",
   foot: "foot/foot.svg",
 };
 
@@ -118,9 +120,10 @@ export async function loadGameAssets(): Promise<GameAssets> {
   const blackPanelBounds = {
     player: { left: 0.06, right: 0.9 },
     floater: { left: 0.04, right: 0.895 },
+    brokedad: { left: 0.04, right: 0.895 },
     bibi: { left: 0.035, right: 0.9 },
   } as const;
-  for (const name of ["player", "floater", "bibi"] as const) {
+  for (const name of ["player", "floater", "brokedad", "bibi"] as const) {
     const image = assets[name];
     const keepPants = name === "player" ? { left: 0.235, right: 0.845, top: 0.78, bottom: 0.94 } : undefined;
     // Bibi's matte is pure gray (18,18,18) but his sleeves are bluish, so a tight tolerance keeps them.
