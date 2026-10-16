@@ -44,7 +44,7 @@ const SETTINGS = {
   footSpawnClearance: 14,
 } as const;
 
-const BIBI_LINES = ["You'll make a good lil Gayboy", "Those are my feet!", "You can't outrun the Nigger Jew", "I rule over everything including your ass"] as const;
+const BIBI_LINES = ["You'll make a good lil Gayboy", "Those are my feet!", "NIGGER JEW ATTACK", "Goyim Stop"] as const;
 
 export interface HudData {
   time: number;
